@@ -1,8 +1,14 @@
+import { randomUUID } from 'node:crypto';
+
 import {
+  DeleteObjectCommand,
   GetBucketCorsCommand,
+  GetObjectCommand,
   PutBucketCorsCommand,
+  PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 if (process.env.VERCEL_ENV === 'preview') process.exit(0);
 
@@ -45,6 +51,7 @@ try {
     region,
     forcePathStyle: true,
     credentials: { accessKeyId, secretAccessKey },
+    requestChecksumCalculation: 'WHEN_REQUIRED',
   });
 
   const readRules = async () => {
@@ -76,25 +83,75 @@ try {
     }
   }
 
-  const preflight = await fetch(
-    `${endpoint.origin}/${encodeURIComponent(bucket)}/__lobehub_cors_check__`,
-    {
-      method: 'OPTIONS',
-      headers: {
-        Origin: origin,
-        'Access-Control-Request-Method': 'PUT',
-        'Access-Control-Request-Headers': 'content-type',
-      },
-    },
+  const key = `__lobehub_cors_check__/${randomUUID()}.txt`;
+  const object = { Bucket: bucket, Key: key };
+  const testBody = 'LobeHub storage check';
+  const uploadUrl = await getSignedUrl(
+    client,
+    new PutObjectCommand({ ...object, ContentType: 'text/plain' }),
+    { expiresIn: 60 },
   );
+  const downloadUrl = await getSignedUrl(client, new GetObjectCommand(object), { expiresIn: 60 });
+  const allowsOrigin = (response) => {
+    const value = response.headers.get('access-control-allow-origin');
+    return value === origin || value === '*';
+  };
 
-  if (!preflight.ok || preflight.headers.get('access-control-allow-origin') !== origin) {
+  const preflight = await fetch(uploadUrl, {
+    method: 'OPTIONS',
+    redirect: 'error',
+    headers: {
+      Origin: origin,
+      'Access-Control-Request-Method': 'PUT',
+      'Access-Control-Request-Headers': 'content-type',
+    },
+  });
+  const allowedMethods = preflight.headers.get('access-control-allow-methods')?.split(/,\s*/) ?? [];
+  const allowedHeaders = preflight.headers.get('access-control-allow-headers')?.split(/,\s*/) ?? [];
+  if (
+    !preflight.ok ||
+    !allowsOrigin(preflight) ||
+    !allowedMethods.includes('PUT') ||
+    !(allowedHeaders.includes('*') || allowedHeaders.includes('content-type'))
+  ) {
     throw new Error(`CorsPreflightFailed(${preflight.status})`);
   }
 
-  console.log('LobeHub storage CORS rule verified and browser upload preflight passed.');
+  try {
+    const uploaded = await fetch(uploadUrl, {
+      method: 'PUT',
+      body: testBody,
+      credentials: 'omit',
+      redirect: 'error',
+      headers: { Origin: origin, 'Content-Type': 'text/plain' },
+    });
+    if (!uploaded.ok || !allowsOrigin(uploaded)) {
+      throw new Error(`CorsUploadFailed(${uploaded.status})`);
+    }
+
+    const downloaded = await fetch(downloadUrl, {
+      credentials: 'omit',
+      redirect: 'error',
+      headers: { Origin: origin },
+    });
+    if (!downloaded.ok || !allowsOrigin(downloaded) || (await downloaded.text()) !== testBody) {
+      throw new Error(`CorsDownloadFailed(${downloaded.status})`);
+    }
+
+    const anonymous = await fetch(downloadUrl.split('?')[0], { redirect: 'error' });
+    if (![401, 403, 404].includes(anonymous.status)) {
+      throw new Error(`UnsignedReadNotRejected(${anonymous.status})`);
+    }
+  } finally {
+    await client.send(new DeleteObjectCommand(object));
+  }
+
+  console.log('LobeHub storage CORS verified: signed upload and download passed; unsigned read was rejected.');
+  if (preflight.headers.get('access-control-allow-origin') === '*') {
+    console.log('Neon returned a wildcard preflight origin despite the saved LobeHub origin rule.');
+  }
 } catch (error) {
-  const safeMessage = /^(MissingStorageConfiguration|InvalidNeonStorageEndpoint|CorsRuleReadbackFailed|CorsPreflightFailed\(\d+\))$/;
+  const safeMessage = /^(MissingStorageConfiguration|InvalidNeonStorageEndpoint|CorsRuleReadbackFailed|(?:CorsPreflightFailed|CorsUploadFailed|CorsDownloadFailed|UnsignedReadNotRejected)\(\d+\))$/;
   const kind = safeMessage.test(error.message) ? error.message : error.name;
   console.error('LobeHub storage CORS setup failed:', kind, error.$metadata?.httpStatusCode ?? '');
   process.exitCode = 1;
