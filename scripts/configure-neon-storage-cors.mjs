@@ -17,7 +17,7 @@ const endpointValue = process.env.S3_ENDPOINT;
 const region = process.env.S3_REGION;
 const accessKeyId = process.env.S3_ACCESS_KEY_ID;
 const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
-const origin = 'https://lobehub-rho-drab.vercel.app';
+const origin = 'https://451287.xyz';
 const methods = ['GET', 'PUT', 'HEAD', 'POST', 'DELETE'];
 
 function hasLobeHubRule(rules) {
