@@ -300,11 +300,11 @@ class UploadService {
         xhr.addEventListener('load', () => {
           if (xhr.status >= 200 && xhr.status < 300) {
             resolve(xhr.getResponseHeader?.('ETag') || undefined);
-          } else reject(xhr.statusText);
+          } else reject(new Error(xhr.statusText || `HTTP ${xhr.status}`));
         });
         xhr.addEventListener('error', () => {
           if (xhr.status === 0) reject(UPLOAD_NETWORK_ERROR);
-          else reject(xhr.statusText);
+          else reject(new Error(xhr.statusText || `HTTP ${xhr.status}`));
         });
         xhr.addEventListener('abort', () => reject(new Error('Upload cancelled by user')));
         xhr.open('PUT', url);

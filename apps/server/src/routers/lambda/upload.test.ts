@@ -58,6 +58,11 @@ const createUpload = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+vi.mock('@/envs/app', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/envs/app')>();
+  return { ...original, appEnv: { ...original.appEnv, APP_URL: 'https://451287.xyz' } };
+});
+
 vi.mock('@/database/core/db-adaptor', () => ({
   getServerDB: vi.fn(function () {
     return routerMocks.serverDB;
@@ -111,6 +116,20 @@ describe('uploadRouter', () => {
     routerMocks.fileUploadService.hasAnyLiveSession.mockResolvedValue(false);
     routerMocks.fileUploadService.assertActiveOrLegacy.mockResolvedValue(undefined);
     routerMocks.fileUploadService.touchActive.mockResolvedValue(undefined);
+  });
+
+  it('returns the absolute regional relay URL to both the browser and CLI', async () => {
+    const path = '/lobehub-files/files/small.png';
+    const query =
+      '?X-Amz-SignedHeaders=content-length%3Bhost&X-Amz-Signature=' + 'a'.repeat(64) + '&x-id=PutObject';
+    routerMocks.createPreSignedUrl.mockResolvedValueOnce(
+      'https://br-hidden-dew-ae8lcssj.storage.c-2.us-east-2.aws.neon.tech' + path + query,
+    );
+
+    await expect(
+      caller.createS3PreSignedUrl({ pathname: 'files/small.png', size: 100 }),
+    ).resolves.toBe('https://451287.xyz/api/lobehub-neon-put' + path + query);
+    expect(routerMocks.createPreSignedUrl).toHaveBeenCalledWith('files/small.png', 100);
   });
 
   it('refuses to reserve a pathname that already holds an object', async () => {
