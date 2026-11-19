@@ -6,6 +6,7 @@ import { FileModel } from '@/database/models/file';
 import type { FileItem } from '@/database/schemas';
 import { getServerDB } from '@/database/server';
 import { FileService } from '@/server/services/file';
+import { getNeonImagePreview } from '@/server/services/neonImagePreview';
 
 import { GET } from './route';
 
@@ -23,6 +24,9 @@ const fileServiceMocks = vi.hoisted(() => {
     instance,
   };
 });
+
+vi.mock('@/envs/app', () => ({ appEnv: { APP_URL: 'https://451287.xyz' } }));
+vi.mock('@/server/services/neonImagePreview', () => ({ getNeonImagePreview: vi.fn() }));
 
 vi.mock('@/database/models/file', () => ({
   FileModel: {
@@ -72,6 +76,18 @@ describe('file proxy route', () => {
       'files/user-id/image.png',
     );
     expect(fileServiceMocks.instance.getFullFileUrl).not.toHaveBeenCalled();
+  });
+
+  it('serves the image under the stable file URL when a regional preview is available', async () => {
+    const preview = new Response(new Uint8Array([1, 2, 3]), {
+      headers: { 'Content-Type': 'image/png' },
+    });
+    vi.mocked(getNeonImagePreview).mockResolvedValueOnce(preview);
+    const response = await GET(new Request('https://451287.xyz/f/file-id'), {
+      params: Promise.resolve({ id: 'file-id' }),
+    });
+    expect(response).toBe(preview);
+    expect(response.headers.get('location')).toBeNull();
   });
 
   it('should redirect download requests to a content-disposition attachment URL', async () => {
