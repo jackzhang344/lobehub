@@ -79,12 +79,15 @@ const requestDecision = async <Q extends DecisionQuestions>(
   log('decide protocol=%s model=%s questions=%d', protocol, requestModel, questionEntries.length);
 
   const raw = await client.post(path, {
-    body: adapter.buildBody({
-      payload,
-      questionEntries,
-      requestModel,
-      user: includeUser ? options?.user : undefined,
-    }),
+    body: {
+      ...adapter.buildBody({
+        payload,
+        questionEntries,
+        requestModel,
+        user: includeUser ? options?.user : undefined,
+      }),
+      ...options?.requestBodyOverrides,
+    },
     headers: options?.headers,
     // Callers own retry policy: a decision is often one arm of a timed experiment, and hidden
     // SDK retries would multiply latency and spend without the caller seeing the attempts.

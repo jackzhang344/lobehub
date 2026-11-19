@@ -15,6 +15,7 @@ import type {
   ChatMethodOptions,
   ChatStreamPayload,
   Embeddings,
+  EmbeddingsOptions,
   EmbeddingsPayload,
   GenerateObjectOptions,
   GenerateObjectPayload,
@@ -80,6 +81,7 @@ export class LobeOllamaAI implements LobeRuntimeAI {
         },
         stream: true,
         tools: payload.tools as Tool[],
+        ...options?.requestBodyOverrides,
       });
 
       const stream = convertIterableToStream(response);
@@ -121,6 +123,7 @@ export class LobeOllamaAI implements LobeRuntimeAI {
         // Ollama rejects `think: true` on models without thinking, so only ever turn it off.
         ...(thinking?.type === 'disabled' && { think: false }),
         tools: tools as Tool[] | undefined,
+        ...options?.requestBodyOverrides,
       });
     } catch (error) {
       throw await this.toRuntimeError(error);
@@ -193,14 +196,17 @@ export class LobeOllamaAI implements LobeRuntimeAI {
     });
   }
 
-  async embeddings(payload: EmbeddingsPayload): Promise<Embeddings[]> {
+  async embeddings(payload: EmbeddingsPayload, options?: EmbeddingsOptions): Promise<Embeddings[]> {
     const input = Array.isArray(payload.input) ? payload.input : [payload.input];
     const promises = input.map((inputText: string) =>
-      this.invokeEmbeddingModel({
-        dimensions: payload.dimensions,
-        input: inputText,
-        model: payload.model,
-      }),
+      this.invokeEmbeddingModel(
+        {
+          dimensions: payload.dimensions,
+          input: inputText,
+          model: payload.model,
+        },
+        options,
+      ),
     );
     return await Promise.all(promises);
   }
@@ -231,11 +237,15 @@ export class LobeOllamaAI implements LobeRuntimeAI {
       .filter(Boolean) as ChatModelCard[];
   }
 
-  private invokeEmbeddingModel = async (payload: EmbeddingsPayload): Promise<Embeddings> => {
+  private invokeEmbeddingModel = async (
+    payload: EmbeddingsPayload,
+    options?: EmbeddingsOptions,
+  ): Promise<Embeddings> => {
     try {
       const responseBody = await this.client.embeddings({
         model: payload.model,
         prompt: payload.input as string,
+        ...options?.requestBodyOverrides,
       });
       return responseBody.embedding;
     } catch (error) {

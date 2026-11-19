@@ -4,6 +4,7 @@ import type {
   ModelTokensUsage,
   ModelUsage,
 } from '@lobechat/types';
+import type { ModelRequestParameterOptions } from 'model-bank/aiModel';
 import type OpenAI from 'openai';
 
 import type { ComputeChatCostOptions } from '../core/usageConverters/utils/computeChatCost';
@@ -213,7 +214,7 @@ export interface ChatStreamPayload {
   verbosity?: 'low' | 'medium' | 'high';
 }
 
-export interface ChatMethodOptions {
+export interface ChatMethodOptions extends ModelRequestParameterOptions {
   callback?: ChatStreamCallbacks;
   /**
    * Request-scoped provider-boundary evidence retained by the caller.

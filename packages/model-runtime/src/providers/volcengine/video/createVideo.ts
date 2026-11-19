@@ -73,7 +73,7 @@ export async function createVolcengineVideo(
   log('Volcengine video API request body: %s', JSON.stringify(body, null, 2));
 
   const response = await fetch(`${baseURL}/contents/generations/tasks`, {
-    body: JSON.stringify(body),
+    body: JSON.stringify({ ...body, ...options.requestBodyOverrides }),
     headers: {
       'Authorization': `Bearer ${options.apiKey}`,
       'Content-Type': 'application/json',

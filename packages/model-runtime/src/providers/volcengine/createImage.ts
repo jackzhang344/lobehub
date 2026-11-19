@@ -82,6 +82,7 @@ export async function createVolcengineImage(
         optimize_prompt_options: { mode: params.promptExtend },
       }),
     ...userInput,
+    ...options.requestBodyOverrides,
   };
 
   log('Volcengine API options: %O', requestOptions);

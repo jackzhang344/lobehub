@@ -1,4 +1,5 @@
 import { type ComfyUIKeyVault } from '@lobechat/types';
+import { ModelRequestParametersSchema, resolveModelRequestParameters } from 'model-bank/aiModel';
 import { z } from 'zod';
 
 import { withScopedPermission } from '@/business/server/trpc-middlewares/rbacPermission';
@@ -33,10 +34,25 @@ export const comfyuiRouter = router({
         model: z.string(),
         options: z.custom<ComfyUIKeyVault>().optional(),
         params: ComfyUIParamsSchema,
+        requestParameterOverrides: z.string().max(65_536).optional(),
       }),
     )
     .mutation(async ({ input }) => {
-      const { model, params, options = {} } = input;
+      const { model, params, options = {}, requestParameterOverrides } = input;
+      const overrides = requestParameterOverrides
+        ? resolveModelRequestParameters(
+            {
+              customRequestParameters: ModelRequestParametersSchema.parse(
+                Object.entries(JSON.parse(requestParameterOverrides)).map(([name, value]) => ({
+                  name,
+                  type: 'json',
+                  value: JSON.stringify(value),
+                })),
+              ),
+            },
+            'comfyui',
+          )
+        : undefined;
 
       // Initialize Framework layer services
       const clientService = new ComfyUIClientService(options);
@@ -58,10 +74,13 @@ export const comfyuiRouter = router({
       );
 
       // Execute image creation
-      return imageService.createImage({
-        model,
-        params,
-      });
+      return imageService.createImage(
+        {
+          model,
+          params,
+        },
+        overrides,
+      );
     }),
 
   /**

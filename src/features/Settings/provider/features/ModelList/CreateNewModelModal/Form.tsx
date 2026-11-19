@@ -1,4 +1,4 @@
-import { Checkbox, Input, Select, TextArea } from '@lobehub/ui';
+import { Checkbox, Input, Select } from '@lobehub/ui';
 import { Form, type FormInstance, type FormValues, useForm } from '@lobehub/ui/form';
 import type { AiModelType, AiProviderModelListItem } from 'model-bank';
 import { memo, useEffect, useMemo } from 'react';
@@ -6,7 +6,8 @@ import { useTranslation } from 'react-i18next';
 
 import MaxTokenSlider from '@/components/MaxTokenSlider';
 
-import { parseOpenRouterRouting } from '../ModelConfigModal/utils';
+import { RequestParameterFields } from '../ModelConfigModal/RequestParameterFields';
+import { toRequestParameterRows } from '../ModelConfigModal/utils';
 import ExtendParamsSelect from './ExtendParamsSelect';
 import { CUSTOM_MODEL_TYPES, hasDuplicateModelId } from './utils';
 
@@ -17,14 +18,14 @@ interface ModelConfigFormProps {
   initialValues?: AiProviderModelListItem;
   onFormInstanceReady: (instance: FormInstance) => void;
   showDeployName?: boolean;
-  showOpenRouterRouting?: boolean;
+  showRequestParameters?: boolean;
   type?: AiModelType;
 }
 
 const ModelConfigForm = memo<ModelConfigFormProps>(
   ({
     showDeployName,
-    showOpenRouterRouting,
+    showRequestParameters,
     idEditable = true,
     onFormInstanceReady,
     initialValues,
@@ -33,13 +34,9 @@ const ModelConfigForm = memo<ModelConfigFormProps>(
   }) => {
     const { t } = useTranslation('modelProvider');
 
-    const savedRouting = initialValues?.config?.openRouterProvider;
     const formInstance = useForm<FormValues>({
-      initialValues: showOpenRouterRouting
-        ? {
-            ...initialValues,
-            openRouterRoutingJson: savedRouting ? JSON.stringify(savedRouting, null, 2) : '',
-          }
+      initialValues: showRequestParameters
+        ? { ...initialValues, requestParameterRows: toRequestParameterRows(initialValues?.config) }
         : initialValues,
     });
 
@@ -107,29 +104,6 @@ const ModelConfigForm = memo<ModelConfigFormProps>(
               placeholder={t('providerModels.item.modelConfig.displayName.placeholder')}
             />
           </Form.Field>
-          {showOpenRouterRouting && (
-            <Form.Field
-              extra={t('providerModels.item.modelConfig.openRouterRouting.extra')}
-              label={t('providerModels.item.modelConfig.openRouterRouting.title')}
-              name={'openRouterRoutingJson'}
-              validate={(value?: string) => {
-                try {
-                  parseOpenRouterRouting(value);
-                  return undefined;
-                } catch {
-                  return t('providerModels.item.modelConfig.openRouterRouting.invalid');
-                }
-              }}
-            >
-              <TextArea
-                disabled={disabled}
-                maxLength={8192}
-                placeholder={'{"sort":"price","zdr":true}'}
-                rows={5}
-                spellCheck={false}
-              />
-            </Form.Field>
-          )}
           <Form.Field
             extra={t('providerModels.item.modelConfig.tokens.extra')}
             label={t('providerModels.item.modelConfig.tokens.title')}
@@ -204,6 +178,9 @@ const ModelConfigForm = memo<ModelConfigFormProps>(
               placeholder={t('providerModels.item.modelConfig.type.placeholder')}
             />
           </Form.Field>
+          {showRequestParameters && (
+            <RequestParameterFields disabled={disabled} form={formInstance} />
+          )}
           {/*<Form.Item*/}
           {/*  extra={t('providerModels.item.modelConfig.files.extra')}*/}
           {/*  label={t('providerModels.item.modelConfig.files.title')}*/}

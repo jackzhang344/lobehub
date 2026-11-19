@@ -127,6 +127,7 @@ export const chatViaChatCompletions = async (
       runtime.client,
       requestPayload,
       runtime.instance,
+      options,
     ) as any;
     recordOpenAIResponseMetadata(providerResponseDiagnostics, {});
   } else {
@@ -145,7 +146,10 @@ export const chatViaChatCompletions = async (
       ),
       stream_options: includeUsageRequested ? { include_usage: true } : undefined,
     };
-    const requestPayload = runtime.withMappedRequestModel(finalPayload, payload.model);
+    const requestPayload = {
+      ...runtime.withMappedRequestModel(finalPayload, payload.model),
+      ...options?.requestBodyOverrides,
+    };
 
     log('sending chat completion request with %d messages', messages.length);
 

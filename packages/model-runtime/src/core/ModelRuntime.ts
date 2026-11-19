@@ -1,4 +1,5 @@
 import type { ModelPerformance, ModelUsage, TracePayload } from '@lobechat/types';
+import type { ModelRequestParameterOptions, RequestBodyOverrides } from 'model-bank/aiModel';
 import type { ClientOptions } from 'openai';
 
 import type { LobeBedrockAIParams } from '../providers/bedrock';
@@ -259,9 +260,23 @@ export class ModelRuntime {
   private _hooks?: ModelRuntimeHooks;
   private _runtime: LobeRuntimeAI;
 
-  constructor(runtime: LobeRuntimeAI, hooks?: ModelRuntimeHooks) {
+  constructor(
+    runtime: LobeRuntimeAI,
+    hooks?: ModelRuntimeHooks,
+    private readonly resolveRequestBodyOverrides?: (
+      model: string,
+    ) => RequestBodyOverrides | undefined | Promise<RequestBodyOverrides | undefined>,
+  ) {
     this._runtime = runtime;
     this._hooks = hooks;
+  }
+
+  private async withModelParameters<T extends ModelRequestParameterOptions>(
+    model: string,
+    options?: T,
+  ): Promise<T | undefined> {
+    const requestBodyOverrides = await this.resolveRequestBodyOverrides?.(model);
+    return requestBodyOverrides ? ({ ...options, requestBodyOverrides } as T) : options;
   }
 
   /**
@@ -325,7 +340,10 @@ export class ModelRuntime {
         );
       }
       const runtimeStartedAt = Date.now();
-      const response = await this._runtime.chat(payload, finalOptions);
+      const response = await this._runtime.chat(
+        payload,
+        await this.withModelParameters(payload.model, finalOptions),
+      );
       if (metadata) {
         timing(
           'ModelRuntime.chat runtime done model=%s durationMs=%d totalMs=%d traceId=%s',
@@ -516,7 +534,10 @@ export class ModelRuntime {
           }
         : hookOptions;
 
-      const output = await this._runtime.generateObject!(payload, finalOptions);
+      const output = await this._runtime.generateObject!(
+        payload,
+        await this.withModelParameters(payload.model, finalOptions),
+      );
       await fireComplete({ output, success: true });
       return output;
     } catch (error) {
@@ -545,7 +566,10 @@ export class ModelRuntime {
     const finalOptions = this._hooks?.beforeCreateImage && !options ? {} : options;
     await this._hooks?.beforeCreateImage?.(payload, finalOptions);
 
-    return this._runtime.createImage?.(payload, finalOptions);
+    return this._runtime.createImage?.(
+      payload,
+      await this.withModelParameters(payload.model, finalOptions),
+    );
   }
 
   async createVideo(
@@ -557,7 +581,11 @@ export class ModelRuntime {
 
     if (!this._runtime.createVideo) return;
 
-    return createVideoWithCompletionMode(this._runtime, payload, finalOptions);
+    return createVideoWithCompletionMode(
+      this._runtime,
+      payload,
+      await this.withModelParameters(payload.model, finalOptions),
+    );
   }
 
   async handleCreateVideoWebhook(payload: HandleCreateVideoWebhookPayload) {
@@ -592,7 +620,10 @@ export class ModelRuntime {
           }
         : hookOptions;
 
-      const result = await this._runtime.embeddings?.(payload, finalOptions);
+      const result = await this._runtime.embeddings?.(
+        payload,
+        await this.withModelParameters(payload.model, finalOptions),
+      );
 
       if (this._hooks?.onEmbeddingsFinal) {
         try {
@@ -635,7 +666,10 @@ export class ModelRuntime {
           }
         : hookOptions;
 
-      const result = await this._runtime.textToSpeech?.(payload, finalOptions);
+      const result = await this._runtime.textToSpeech?.(
+        payload,
+        await this.withModelParameters(payload.model, finalOptions),
+      );
 
       if (this._hooks?.onTextToSpeechFinal) {
         try {
@@ -679,7 +713,10 @@ export class ModelRuntime {
           }
         : hookOptions;
 
-      const result = await this._runtime.transcribe?.(payload, finalOptions);
+      const result = await this._runtime.transcribe?.(
+        payload,
+        await this.withModelParameters(payload.model, finalOptions),
+      );
 
       if (this._hooks?.onTranscribeFinal) {
         try {
@@ -748,17 +785,19 @@ export class ModelRuntime {
       const startTime = Date.now();
       let usage: ModelUsage | undefined;
       let providerReportedCost: number | undefined;
-      const raw = await decide({
-        ...hookOptions,
-        onProviderReportedCost: async (cost: number) => {
-          providerReportedCost = cost;
-          await hookOptions?.onProviderReportedCost?.(cost);
-        },
-        onUsage: async (reported: ModelUsage) => {
-          usage = reported;
-          await hookOptions?.onUsage?.(reported);
-        },
-      });
+      const raw = await decide(
+        await this.withModelParameters<DecisionOptions>(payload.model, {
+          ...hookOptions,
+          onProviderReportedCost: async (cost: number) => {
+            providerReportedCost = cost;
+            await hookOptions?.onProviderReportedCost?.(cost);
+          },
+          onUsage: async (reported: ModelUsage) => {
+            usage = reported;
+            await hookOptions?.onUsage?.(reported);
+          },
+        }),
+      );
       const response = {
         ...raw,
         providerMetadata: {
@@ -834,6 +873,7 @@ export class ModelRuntime {
         }
     >,
     hooks?: ModelRuntimeHooks,
+    resolveRequestBodyOverrides?: ConstructorParameters<typeof ModelRuntime>[2],
   ) {
     // runtime map does not include every provider id (e.g. vertex), so index loosely
     const runtimeMap: Partial<Record<string, new (params: any) => LobeRuntimeAI>> =
@@ -842,6 +882,6 @@ export class ModelRuntime {
 
     const runtimeModel: LobeRuntimeAI = new providerAI(params);
 
-    return new ModelRuntime(runtimeModel, hooks);
+    return new ModelRuntime(runtimeModel, hooks, resolveRequestBodyOverrides);
   }
 }

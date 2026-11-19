@@ -1,5 +1,6 @@
 import type { ModelUsage } from '@lobechat/types';
 import type { RuntimeTTSParams, TTSAudioFormat } from 'model-bank';
+import type { ModelRequestParameterOptions } from 'model-bank/aiModel';
 
 import type { ModelPricingContext } from './pricing';
 import type { OnUsageCallback } from './routeAttempt';
@@ -19,7 +20,7 @@ export interface TextToSpeechPayload {
   voice: string;
 }
 
-export interface TextToSpeechOptions {
+export interface TextToSpeechOptions extends ModelRequestParameterOptions {
   headers?: Record<string, any>;
   /** Metadata passed to hooks (billing, tracing, route attempts), e.g. `trigger`. */
   metadata?: Record<string, unknown>;

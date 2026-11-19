@@ -80,7 +80,10 @@ export const generateObjectViaResponses = async (
     model,
   );
   const res = await runtime.client!.responses.create(
-    preparedRequest.payload as OpenAI.Responses.ResponseCreateParamsNonStreaming,
+    {
+      ...preparedRequest.payload,
+      ...options?.requestBodyOverrides,
+    } as OpenAI.Responses.ResponseCreateParamsNonStreaming,
     {
       headers: preparedRequest.headers
         ? { ...options?.headers, ...preparedRequest.headers }
@@ -136,7 +139,10 @@ export const generateToolCallsViaResponses = async (
     payload.model,
   );
   const res = await runtime.client.responses.create(
-    preparedRequest.payload as OpenAI.Responses.ResponseCreateParamsNonStreaming,
+    {
+      ...preparedRequest.payload,
+      ...options?.requestBodyOverrides,
+    } as OpenAI.Responses.ResponseCreateParamsNonStreaming,
     {
       headers: preparedRequest.headers
         ? { ...options?.headers, ...preparedRequest.headers }

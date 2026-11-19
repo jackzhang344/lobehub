@@ -105,7 +105,7 @@ export const chatViaResponses = async (
     }),
   } as ResponseCreateParamsWithPromptCacheKey;
   const preparedRequest = runtime.prepareResponsesRequest(postPayload, usageModel);
-  const requestPayload = preparedRequest.payload;
+  const requestPayload = { ...preparedRequest.payload, ...options?.requestBodyOverrides };
   const providerResponseDiagnostics = initializeOpenAIDiagnostics({
     apiMode: 'responses',
     diagnostics: options?.diagnostics,

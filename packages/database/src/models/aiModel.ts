@@ -201,6 +201,25 @@ export class AiModelModel {
     });
   };
 
+  getRequestParameterConfig = async (id: string, providerId: string) => {
+    const row = await this.db.query.aiModels.findFirst({
+      columns: { config: true },
+      where: and(
+        eq(aiModels.id, id),
+        eq(aiModels.providerId, providerId),
+        eq(aiModels.userId, this.userId),
+        this.scopeWhere(),
+      ),
+    });
+    const config = row?.config as AiModelConfig | null | undefined;
+    return config
+      ? {
+          customRequestParameters: config.customRequestParameters,
+          openRouterProvider: config.openRouterProvider,
+        }
+      : undefined;
+  };
+
   update = async (id: string, providerId: string, value: Partial<AiModelSelectItem>) => {
     const normalizedValue = this.normalizeAiModelValues(value);
 
@@ -579,6 +598,7 @@ export class AiModelModel {
           abilities: null,
           config: sql`jsonb_build_object(
             'chatConfig', ${aiModels.config} -> 'chatConfig',
+            'customRequestParameters', ${aiModels.config} -> 'customRequestParameters',
             'openRouterProvider', ${aiModels.config} -> 'openRouterProvider'
           )`,
           contextWindowTokens: null,
@@ -603,6 +623,7 @@ export class AiModelModel {
             sql`(
               COALESCE(${aiModels.config} ->> 'chatConfig', '') <> ''
               OR COALESCE(${aiModels.config} ->> 'openRouterProvider', '') <> ''
+              OR COALESCE(${aiModels.config} ->> 'customRequestParameters', '') NOT IN ('', '[]')
             )`,
             this.scopeWhere(),
           ),

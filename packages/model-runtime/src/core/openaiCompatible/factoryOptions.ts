@@ -1,11 +1,13 @@
 import type { ChatModelCard } from '@lobechat/types';
 import type { AiFullModelCard } from 'model-bank';
+import type { ModelRequestParameterOptions } from 'model-bank/aiModel';
 import type OpenAI from 'openai';
 import type { ClientOptions } from 'openai';
 import type { Stream } from 'openai/streaming';
 
 import type {
   ChatCompletionErrorPayload,
+  ChatMethodOptions,
   ChatStreamCallbacks,
   ChatStreamPayload,
   GenerateObjectPayload,
@@ -47,14 +49,16 @@ export type ResponseCreateParamsWithPromptCacheKey = (
 // `provider: string` collapses to `Provider & string`, breaking every call site
 // that passes a plain provider id string.
 export type CreateImageOptions = Omit<ClientOptions, 'apiKey' | 'provider'> &
-  ModelIdMappingOptions & {
+  ModelIdMappingOptions &
+  ModelRequestParameterOptions & {
     apiKey: string;
     provider: string;
   };
 
 // See CreateImageOptions above: drop openai's `provider` so ours stays `string`.
 export type CreateVideoOptions = Omit<ClientOptions, 'apiKey' | 'provider'> &
-  ModelIdMappingOptions & {
+  ModelIdMappingOptions &
+  ModelRequestParameterOptions & {
     apiKey: string;
     provider: string;
   };
@@ -64,6 +68,7 @@ export interface CustomClientOptions<T extends Record<string, any> = any> {
     client: any,
     payload: ChatStreamPayload,
     instance: any,
+    options?: ChatMethodOptions,
   ) => ReadableStream<any>;
   createClient?: (options: ConstructorOptions<T>) => any;
 }

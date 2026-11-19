@@ -25,8 +25,8 @@ export const params = {
     },
   },
   customClient: {
-    createChatCompletionStream: (client: InferenceClient, payload, instance) => {
-      const hfRes = client.chatCompletionStream({
+    createChatCompletionStream: (client: InferenceClient, payload, instance, options) => {
+      const args = {
         endpointUrl: instance.baseURL ? urlJoin(instance.baseURL, payload.model) : instance.baseURL,
         max_tokens: payload.max_tokens,
         messages: convertOpenAIMessagesToHFFormat(payload.messages),
@@ -41,7 +41,21 @@ export const params = {
               ? 0.01
               : payload?.top_p
           : undefined,
-      });
+      };
+      const overrides = options?.requestBodyOverrides;
+      const hfRes = overrides
+        ? client.chatCompletionStream(args, {
+            fetch: (input, init) => {
+              // GET metadata requests have no JSON body and stay untouched.
+              if (typeof init?.body !== 'string') return fetch(input, init);
+              const body = JSON.parse(init.body);
+              return fetch(input, {
+                ...init,
+                body: JSON.stringify({ ...body, ...overrides }),
+              });
+            },
+          })
+        : client.chatCompletionStream(args);
 
       return convertIterableToStream(hfRes);
     },

@@ -1,5 +1,5 @@
 import { TRPCError } from '@trpc/server';
-import { type AiProviderModelListItem } from 'model-bank';
+import type { AiProviderModelListItem } from 'model-bank';
 import {
   AiModelReasoningConfigSchema,
   AiModelTypeSchema,
@@ -154,6 +154,12 @@ export const aiModelRouter = router({
 
     .query(async ({ input, ctx }) => {
       return ctx.aiModelModel.findById(input.id);
+    }),
+
+  getAiModelRequestConfig: aiModelProcedure
+    .input(z.object({ id: z.string(), providerId: z.string() }))
+    .query(async ({ input, ctx }) => {
+      return (await ctx.aiModelModel.getRequestParameterConfig(input.id, input.providerId)) ?? null;
     }),
 
   // Personal-scope by design (workspaceId ignored): the user's default reasoning

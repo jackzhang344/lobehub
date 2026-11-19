@@ -366,11 +366,16 @@ export default {
   'providerModels.item.modelConfig.reasoning.extra':
     "This configuration will enable the model's deep thinking capabilities, and the specific effects depend entirely on the model itself. Please test whether this model has usable deep thinking abilities.",
   'providerModels.item.modelConfig.reasoning.title': 'Support Deep Thinking',
-  'providerModels.item.modelConfig.openRouterRouting.extra':
-    'Paste OpenRouter Provider Preferences JSON for this model. Leave blank to use OpenRouter’s default routing.',
-  'providerModels.item.modelConfig.openRouterRouting.invalid':
-    'Enter a valid Provider Preferences JSON object or leave the field blank.',
-  'providerModels.item.modelConfig.openRouterRouting.title': 'OpenRouter routing preferences',
+  'providerModels.item.modelConfig.requestParameters.add': 'Add parameter',
+  'providerModels.item.modelConfig.requestParameters.help':
+    'Use the request field names and types documented by this model’s provider. Custom values override the corresponding request fields.',
+  'providerModels.item.modelConfig.requestParameters.invalid':
+    'Check the name or value for parameter {{reason}}. Use unique names and valid values.',
+  'providerModels.item.modelConfig.requestParameters.name': 'Parameter name',
+  'providerModels.item.modelConfig.requestParameters.remove': 'Remove parameter',
+  'providerModels.item.modelConfig.requestParameters.title': 'Custom request parameters',
+  'providerModels.item.modelConfig.requestParameters.type': 'Parameter type',
+  'providerModels.item.modelConfig.requestParameters.value': 'Parameter value',
   'providerModels.item.modelConfig.search.extra':
     "This setting enables the model's built-in web search capability. Whether the built-in search engine is supported depends on the model itself. Please test the model to verify the availability of this feature.",
   'providerModels.item.modelConfig.search.title': 'Supports Web Search',

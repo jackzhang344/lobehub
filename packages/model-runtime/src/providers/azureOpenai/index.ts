@@ -18,7 +18,7 @@ import type {
   ChatStreamPayload,
 } from '../../types';
 import { AgentRuntimeErrorType } from '../../types/error';
-import type { CreateImagePayload } from '../../types/image';
+import type { CreateImageMethodOptions, CreateImagePayload } from '../../types/image';
 import { AgentRuntimeError } from '../../utils/createError';
 import { sanitizeError } from '../../utils/sanitizeError';
 import { isResponsesAPIModel, responsesAPIModels, systemToUserModels } from '../openai/modelId';
@@ -275,7 +275,7 @@ export class LobeAzureOpenAI extends BaseAzureOpenAI {
     return this.transcriptionClient;
   }
 
-  async createImage(payload: CreateImagePayload) {
+  async createImage(payload: CreateImagePayload, options?: CreateImageMethodOptions) {
     const { model, params } = payload;
     const requestModel = this.getMappedModelId(model);
     azureImageLogger('Creating image with model: %s and params: %O', requestModel, params);
@@ -318,6 +318,7 @@ export class LobeAzureOpenAI extends BaseAzureOpenAI {
         n: 1,
         ...(shouldUseInputFidelity ? { input_fidelity: 'high' } : {}),
         ...userInput,
+        ...options?.requestBodyOverrides,
       };
 
       if (!isImageEdit) delete azureImageOptions.image;

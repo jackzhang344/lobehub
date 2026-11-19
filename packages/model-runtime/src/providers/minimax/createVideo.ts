@@ -277,7 +277,7 @@ export async function createMiniMaxVideo(
     log('Creating video with MiniMax H3 API - model: %s, params: %O', model, params);
 
     const response = await fetch(`${resolveMiniMaxV2BaseURL(baseURL)}/video_generation`, {
-      body: JSON.stringify(body),
+      body: JSON.stringify({ ...body, ...options.requestBodyOverrides }),
       headers: {
         'Authorization': `Bearer ${options.apiKey}`,
         'Content-Type': 'application/json',
@@ -331,7 +331,7 @@ export async function createMiniMaxVideo(
   log('Creating video with MiniMax API - model: %s, params: %O', model, params);
 
   const response = await fetch(`${baseURL}/video_generation`, {
-    body: JSON.stringify(body),
+    body: JSON.stringify({ ...body, ...options.requestBodyOverrides }),
     headers: {
       'Authorization': `Bearer ${options.apiKey}`,
       'Content-Type': 'application/json',

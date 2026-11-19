@@ -6,6 +6,12 @@ import {
   type TTSVoice,
   type VideoModelParamsSchema,
 } from '../standard-parameters';
+import {
+  type ModelRequestParameters,
+  ModelRequestParametersSchema,
+} from './modelRequestParameters';
+
+export * from './modelRequestParameters';
 
 export type ModelPriceCurrency = 'CNY' | 'USD';
 
@@ -558,6 +564,9 @@ export interface AiModelConfig {
    */
   chatConfig?: AiModelReasoningConfig;
 
+  /** Per-model values applied to the selected API's native request body. */
+  customRequestParameters?: ModelRequestParameters;
+
   /**
    * used in azure and volcengine
    */
@@ -855,6 +864,7 @@ export const UpdateAiModelSchema = z.object({
   // generic update path can never carry (and thus never stomp) that namespace.
   config: z
     .object({
+      customRequestParameters: ModelRequestParametersSchema.optional(),
       deploymentName: z.string().optional(),
       openRouterProvider: OpenRouterProviderPreferencesSchema.nullish(),
     })

@@ -1,3 +1,5 @@
+import type { ModelRequestParameterOptions } from 'model-bank/aiModel';
+
 import type { ChatCompletionTool, ChatStreamPayload } from './chat';
 import type { ModelPricingContext } from './pricing';
 import type { OnUsageCallback } from './routeAttempt';
@@ -30,7 +32,7 @@ export interface GenerateObjectPayload {
   tools?: ChatCompletionTool[];
 }
 
-export interface GenerateObjectOptions {
+export interface GenerateObjectOptions extends ModelRequestParameterOptions {
   /**
    * response headers
    */

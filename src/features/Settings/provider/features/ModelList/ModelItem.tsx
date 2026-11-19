@@ -13,7 +13,6 @@ import { cssVar as sxVar } from '@lobehub/ui/stylex/cssVar.stylex';
 import * as stylex from '@stylexjs/stylex';
 import { LucidePencil, TrashIcon } from 'lucide-react';
 import { AiModelSourceEnum, type AiProviderModelListItem } from 'model-bank/aiModel';
-import { ModelProvider } from 'model-bank/modelProvider';
 import React, { memo, use, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -114,54 +113,47 @@ const ModelItem = memo<ModelItemProps>(
       />
     ) : null;
 
-    const Actions =
-      modelEditable &&
-      ((style?: React.CSSProperties) => (
-        <Flexbox horizontal className={stylex.props(styles.config).className} style={style}>
+    const renderActions = (style?: React.CSSProperties) => (
+      <Flexbox horizontal className={stylex.props(styles.config).className} style={style}>
+        <ActionIcon
+          disabled={!canManageProvider}
+          icon={LucidePencil}
+          size={'small'}
+          title={canManageProvider ? t('providerModels.item.config') : reason}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!canManageProvider) return;
+            createModelConfigModal({ id, parametersOnly: !modelEditable, showDeployName });
+          }}
+        />
+        {modelEditable && source !== AiModelSourceEnum.Builtin && (
           <ActionIcon
             disabled={!canManageProvider}
-            icon={LucidePencil}
+            icon={TrashIcon}
             size={'small'}
-            title={canManageProvider ? t('providerModels.item.config') : reason}
-            onClick={(e) => {
-              e.stopPropagation();
+            title={canManageProvider ? t('providerModels.item.delete.title') : reason}
+            onClick={() => {
               if (!canManageProvider) return;
-              createModelConfigModal({
-                id,
-                showDeployName,
-                showOpenRouterRouting:
-                  activeAiProvider === ModelProvider.OpenRouter && type === 'chat',
+              confirmModal({
+                cancelText: t('cancel', { ns: 'common' }),
+                content: t('providerModels.item.delete.confirm', {
+                  displayName: displayName || id,
+                }),
+                okButtonProps: {
+                  danger: true,
+                },
+                okText: t('delete', { ns: 'common' }),
+                onOk: async () => {
+                  await removeAiModel(id, activeAiProvider!);
+                  toast.success(t('providerModels.item.delete.success'));
+                },
+                title: t('providerModels.item.delete.title'),
               });
             }}
           />
-          {source !== AiModelSourceEnum.Builtin && (
-            <ActionIcon
-              disabled={!canManageProvider}
-              icon={TrashIcon}
-              size={'small'}
-              title={canManageProvider ? t('providerModels.item.delete.title') : reason}
-              onClick={() => {
-                if (!canManageProvider) return;
-                confirmModal({
-                  cancelText: t('cancel', { ns: 'common' }),
-                  content: t('providerModels.item.delete.confirm', {
-                    displayName: displayName || id,
-                  }),
-                  okButtonProps: {
-                    danger: true,
-                  },
-                  okText: t('delete', { ns: 'common' }),
-                  onOk: async () => {
-                    await removeAiModel(id, activeAiProvider!);
-                    toast.success(t('providerModels.item.delete.success'));
-                  },
-                  title: t('providerModels.item.delete.title'),
-                });
-              }}
-            />
-          )}
-        </Flexbox>
-      ));
+        )}
+      </Flexbox>
+    );
 
     const dom = isMobile ? (
       <Flexbox
@@ -193,7 +185,7 @@ const ModelItem = memo<ModelItemProps>(
           </Flexbox>
         </Flexbox>
         <Flexbox horizontal align={'center'} gap={4}>
-          {Actions && Actions({ opacity: 1 })}
+          {renderActions({ opacity: 1 })}
           {EnableSwitch}
         </Flexbox>
       </Flexbox>
@@ -215,7 +207,7 @@ const ModelItem = memo<ModelItemProps>(
               <RoutingBadge id={id} provider={activeAiProvider} />
               {ModelIdTag}
               {NewTag}
-              {Actions && Actions()}
+              {renderActions()}
             </Flexbox>
             <Flexbox horizontal align={'baseline'} gap={8}>
               {content.length > 0 && (

@@ -1,8 +1,7 @@
-import { ModelProvider, type OpenRouterProviderPreferences } from 'model-bank';
+import { ModelProvider } from 'model-bank';
 
 import type { OpenAICompatibleFactoryOptions } from '../../core/openaiCompatible';
 import { createOpenAICompatibleRuntime } from '../../core/openaiCompatible';
-import type { ChatMethodOptions, ChatStreamPayload } from '../../types';
 import { processMultiProviderModelList } from '../../utils/modelParse';
 import type { OpenRouterModelCard, OpenRouterReasoning } from './type';
 
@@ -236,27 +235,4 @@ export const params = {
   provider: ModelProvider.OpenRouter,
 } satisfies OpenAICompatibleFactoryOptions;
 
-const OpenRouterRuntime = createOpenAICompatibleRuntime(params);
-
-type OpenRouterConstructorOptions = NonNullable<
-  ConstructorParameters<typeof OpenRouterRuntime>[0]
-> & {
-  resolveOpenRouterProvider?: (model: string) => Promise<OpenRouterProviderPreferences | undefined>;
-};
-
-export class LobeOpenRouterAI extends OpenRouterRuntime {
-  private readonly resolveOpenRouterProvider?: OpenRouterConstructorOptions['resolveOpenRouterProvider'];
-
-  constructor({ resolveOpenRouterProvider, ...options }: OpenRouterConstructorOptions = {}) {
-    super(options);
-    this.resolveOpenRouterProvider = resolveOpenRouterProvider;
-  }
-
-  override async chat(payload: ChatStreamPayload, options?: ChatMethodOptions) {
-    const preferences = await this.resolveOpenRouterProvider?.(payload.model);
-    // The generic payload types `provider` as a LobeHub provider ID. In an
-    // OpenRouter request this is the routing object, passed through by both protocols.
-    const request = preferences ? { ...payload, provider: preferences } : payload;
-    return super.chat(request as ChatStreamPayload, options);
-  }
-}
+export const LobeOpenRouterAI = createOpenAICompatibleRuntime(params);

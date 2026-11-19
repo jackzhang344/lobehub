@@ -26,8 +26,8 @@ import {
   type VertexAIKeyVault,
 } from '@lobechat/types';
 import { safeParseJSON } from '@lobechat/utils';
-import type { AiFullModelCard, AiModelConfig } from 'model-bank';
-import { isAiModelVisible, ModelProvider } from 'model-bank';
+import type { AiFullModelCard } from 'model-bank';
+import { isAiModelVisible, ModelProvider, resolveModelRequestParameters } from 'model-bank';
 import { AiProviderBaseURLSchema } from 'model-bank/aiProvider';
 import { DEFAULT_MODEL_PROVIDER_LIST } from 'model-bank/modelProviders';
 
@@ -440,6 +440,7 @@ export const initModelRuntimeWithUserPayload = (
   payload: ClientSecretPayload,
   params: any = {},
   hooks?: ModelRuntimeHooks,
+  resolveRequestBodyOverrides?: ConstructorParameters<typeof ModelRuntime>[2],
 ) => {
   const runtimeProvider = payload.runtimeProvider ?? provider;
 
@@ -462,7 +463,7 @@ export const initModelRuntimeWithUserPayload = (
     );
     const runtime = LobeVertexAI.initFromVertexAI(vertexOptions);
 
-    return new ModelRuntime(runtime, hooks);
+    return new ModelRuntime(runtime, hooks, resolveRequestBodyOverrides);
   }
 
   return ModelRuntime.initializeWithProvider(
@@ -472,6 +473,7 @@ export const initModelRuntimeWithUserPayload = (
       ...params,
     },
     hooks,
+    resolveRequestBodyOverrides,
   );
 };
 
@@ -546,21 +548,18 @@ export const initModelRuntimeFromDB = async (
   const tracingHooks = createLLMGenerationTracingHook(userId, provider, workspaceId);
   const hooks = mergeModelRuntimeHooks(businessHooks, tracingHooks);
 
-  // Read the selected model's preferences at request time, scoped like its settings.
-  const aiModelModel =
-    provider === ModelProvider.OpenRouter ? new AiModelModel(db, userId, workspaceId) : undefined;
-  const resolveOpenRouterProvider = aiModelModel
-    ? async (modelId: string) => {
-        const model = await aiModelModel.findByIdAndProvider(modelId, provider);
-        return (model?.config as AiModelConfig | undefined)?.openRouterProvider ?? undefined;
-      }
-    : undefined;
+  const aiModelModel = new AiModelModel(db, userId, workspaceId);
+  const resolveRequestBodyOverrides = async (modelId: string) => {
+    const config = await aiModelModel.getRequestParameterConfig(modelId, provider);
+    return resolveModelRequestParameters(config, provider);
+  };
 
   return initModelRuntimeWithUserPayload(
     provider,
     payload,
-    { ...(resolveOpenRouterProvider && { resolveOpenRouterProvider }), userId, workspaceId },
+    { userId, workspaceId },
     hooks,
+    resolveRequestBodyOverrides,
   );
 };
 

@@ -19,6 +19,7 @@ interface BflCreateImageOptions {
   apiKey: string;
   baseURL?: string;
   provider: string;
+  requestBodyOverrides?: Record<string, unknown>;
 }
 
 /**
@@ -119,7 +120,7 @@ async function submitTask(
   log('Submitting task to: %s', url);
 
   const response = await fetch(url, {
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ ...payload, ...options.requestBodyOverrides }),
     headers: {
       'Content-Type': 'application/json',
       'x-key': options.apiKey,

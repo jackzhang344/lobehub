@@ -1,4 +1,5 @@
 import type { ModelUsage } from '@lobechat/types';
+import type { ModelRequestParameterOptions } from 'model-bank/aiModel';
 
 import type { ModelPricingContext } from './pricing';
 
@@ -133,7 +134,7 @@ export interface DecisionResponse<Q extends DecisionQuestions = DecisionQuestion
   usage?: ModelUsage;
 }
 
-export interface DecisionOptions {
+export interface DecisionOptions extends ModelRequestParameterOptions {
   headers?: Record<string, string>;
   /** Metadata passed to hooks (billing, tracing, route attempts), e.g. `trigger`. */
   metadata?: Record<string, unknown>;

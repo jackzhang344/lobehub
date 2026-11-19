@@ -71,6 +71,7 @@ async function createLegacySynthesisTask(
   apiKey: string,
   endpoint: 'text2image' | 'image2image',
   baseUrl: string,
+  requestBodyOverrides?: Record<string, unknown>,
 ): Promise<string> {
   const { model, params } = payload;
   const url = `${baseUrl}/api/v1/services/aigc/${endpoint}/image-synthesis`;
@@ -111,6 +112,7 @@ async function createLegacySynthesisTask(
       input,
       model,
       parameters,
+      ...requestBodyOverrides,
     }),
     headers: {
       'Authorization': `Bearer ${apiKey}`,
@@ -146,6 +148,7 @@ async function createHTTPAsyncGenerationTask(
   payload: CreateImagePayload,
   apiKey: string,
   baseUrl: string,
+  requestBodyOverrides?: Record<string, unknown>,
 ): Promise<string> {
   const { model, params } = payload;
   const endpoint = `${baseUrl}/api/v1/services/aigc/image-generation/generation`;
@@ -196,6 +199,7 @@ async function createHTTPAsyncGenerationTask(
       },
       model,
       parameters,
+      ...requestBodyOverrides,
     }),
     headers: {
       'Authorization': `Bearer ${apiKey}`,
@@ -233,6 +237,7 @@ async function createHTTPSyncGeneration(
   payload: CreateImagePayload,
   apiKey: string,
   baseUrl: string,
+  requestBodyOverrides?: Record<string, unknown>,
 ): Promise<CreateImageResponse> {
   const { model, params } = payload;
   const endpoint = `${baseUrl}/api/v1/services/aigc/multimodal-generation/generation`;
@@ -273,6 +278,7 @@ async function createHTTPSyncGeneration(
         ...(params.promptExtend && { prompt_extend: params.promptExtend }),
         ...(params.watermark && { watermark: params.watermark }),
       },
+      ...requestBodyOverrides,
     }),
     headers: {
       'Authorization': `Bearer ${apiKey}`,
@@ -417,19 +423,35 @@ export async function createQwenImage(
       const endpoint = isImage2Image ? 'image2image' : 'text2image';
       log('Using %s API for model: %s', endpoint, model);
 
-      const taskId = await createLegacySynthesisTask(payload, apiKey, endpoint, dashscopeURL);
+      const taskId = await createLegacySynthesisTask(
+        payload,
+        apiKey,
+        endpoint,
+        dashscopeURL,
+        options.requestBodyOverrides,
+      );
 
       return await pollTaskToImageResponse(taskId, apiKey, dashscopeURL, model);
     }
 
     if (isSyncGeneration) {
       log('Using multimodal-generation API for model: %s', model);
-      return await createHTTPSyncGeneration(payload, apiKey, dashscopeURL);
+      return await createHTTPSyncGeneration(
+        payload,
+        apiKey,
+        dashscopeURL,
+        options.requestBodyOverrides,
+      );
     }
 
     log('Using image-generation async API for model: %s', model);
 
-    const taskId = await createHTTPAsyncGenerationTask(payload, apiKey, dashscopeURL);
+    const taskId = await createHTTPAsyncGenerationTask(
+      payload,
+      apiKey,
+      dashscopeURL,
+      options.requestBodyOverrides,
+    );
 
     return await pollTaskToImageResponse(taskId, apiKey, dashscopeURL, model);
   } catch (error) {

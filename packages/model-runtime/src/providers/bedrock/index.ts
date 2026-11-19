@@ -211,6 +211,7 @@ export class LobeBedrockAI implements LobeRuntimeAI {
       body: JSON.stringify({
         anthropic_version: 'bedrock-2023-05-31',
         ...bedrockRequestParams,
+        ...options?.requestBodyOverrides,
       }),
       contentType: 'application/json',
       modelId: this.resolveModelId(payload.model),
@@ -254,6 +255,7 @@ export class LobeBedrockAI implements LobeRuntimeAI {
         dimensions: payload.dimensions,
         inputText: payload.input,
         normalize: true,
+        ...options?.requestBodyOverrides,
       }),
       contentType: 'application/json',
       modelId: payload.model,
@@ -386,7 +388,7 @@ export class LobeBedrockAI implements LobeRuntimeAI {
 
     const command = new InvokeModelWithResponseStreamCommand({
       accept: 'application/json',
-      body: JSON.stringify(anthropicPayload),
+      body: JSON.stringify({ ...anthropicPayload, ...options?.requestBodyOverrides }),
       contentType: 'application/json',
       modelId: this.resolveModelId(model),
     });
@@ -467,7 +469,7 @@ export class LobeBedrockAI implements LobeRuntimeAI {
     };
     const command = new InvokeModelWithResponseStreamCommand({
       accept: 'application/json',
-      body: JSON.stringify(llamaPayload),
+      body: JSON.stringify({ ...llamaPayload, ...options?.requestBodyOverrides }),
       contentType: 'application/json',
       modelId: model,
     });

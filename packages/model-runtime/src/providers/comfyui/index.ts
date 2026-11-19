@@ -1,13 +1,14 @@
 import type { ComfyUIKeyVault } from '@lobechat/types';
-import { createBasicAuthCredentials } from '../../utils/base64';
 import debug from 'debug';
 
 import type { LobeRuntimeAI } from '../../core/BaseAI';
 import type {
   AuthenticatedImageRuntime,
+  CreateImageMethodOptions,
   CreateImagePayload,
   CreateImageResponse,
 } from '../../types';
+import { createBasicAuthCredentials } from '../../utils/base64';
 import { parseComfyUIErrorMessage } from '../../utils/comfyuiErrorParser';
 import { AgentRuntimeError } from '../../utils/createError';
 
@@ -68,7 +69,10 @@ export class LobeComfyUI implements LobeRuntimeAI, AuthenticatedImageRuntime {
    * Create image using internal API endpoint
    * Always uses full URL for consistency across environments
    */
-  async createImage(payload: CreateImagePayload): Promise<CreateImageResponse> {
+  async createImage(
+    payload: CreateImagePayload,
+    options?: CreateImageMethodOptions,
+  ): Promise<CreateImageResponse> {
     log('🎨 Creating image with model: %s', payload.model);
 
     try {
@@ -103,6 +107,9 @@ export class LobeComfyUI implements LobeRuntimeAI, AuthenticatedImageRuntime {
           model: payload.model,
           options: this.options,
           params: payload.params,
+          requestParameterOverrides: options?.requestBodyOverrides
+            ? JSON.stringify(options.requestBodyOverrides)
+            : undefined,
         }),
         headers,
         method: 'POST',

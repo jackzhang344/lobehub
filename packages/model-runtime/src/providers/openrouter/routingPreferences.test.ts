@@ -5,6 +5,7 @@ import {
 } from 'model-bank/aiModel';
 import { describe, expect, it, vi } from 'vitest';
 
+import { ModelRuntime } from '../../core/ModelRuntime';
 import { LobeOpenRouterAI } from './index';
 
 vi.mock('@lobechat/business-model-bank/model-config', () => ({
@@ -26,9 +27,13 @@ describe('OpenRouter model routing preferences', () => {
     const resolver = vi.fn(async (model: string) =>
       model === configuredModel ? savedPreferences : undefined,
     );
-    const runtime = new LobeOpenRouterAI({ apiKey: 'test', resolveOpenRouterProvider: resolver });
+    const provider = new LobeOpenRouterAI({ apiKey: 'test' });
+    const runtime = new ModelRuntime(provider, undefined, async (model) => {
+      const value = await resolver(model);
+      return value ? { provider: value } : undefined;
+    });
     const create = vi
-      .spyOn(runtime['client'].chat.completions, 'create')
+      .spyOn(provider['client'].chat.completions, 'create')
       .mockImplementation(async () => new ReadableStream() as any);
     const messages = [{ content: 'Hello', role: 'user' as const }];
 

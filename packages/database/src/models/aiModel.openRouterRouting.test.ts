@@ -1,6 +1,10 @@
 // @vitest-environment node
 import { eq } from 'drizzle-orm';
-import { UpdateAiModelSchema } from 'model-bank/aiModel';
+import {
+  type ModelRequestParameters,
+  resolveModelRequestParameters,
+  UpdateAiModelSchema,
+} from 'model-bank/aiModel';
 import { expect, it, vi } from 'vitest';
 
 import { getTestDB } from '../core/getTestDB';
@@ -24,6 +28,10 @@ it('preserves the model routing preferences when fetched metadata is refreshed a
     type: 'chat',
   } as const;
   const openRouterProvider = { quantizations: ['fp8'], zdr: true };
+  const customRequestParameters: ModelRequestParameters = [
+    { name: 'provider', type: 'json', value: JSON.stringify(openRouterProvider) },
+    { name: 'temperature', type: 'number', value: 0 },
+  ];
 
   await db.insert(users).values({ id: userId });
   try {
@@ -32,13 +40,14 @@ it('preserves the model routing preferences when fetched metadata is refreshed a
       model.id,
       provider,
       UpdateAiModelSchema.parse({
-        config: { openRouterProvider },
+        config: { customRequestParameters, openRouterProvider },
       }),
     );
 
     await models.clearRemoteModels(provider);
     await models.batchUpdateAiModels(provider, [model]);
     expect((await models.findByIdAndProvider(model.id, provider))?.config).toMatchObject({
+      customRequestParameters,
       openRouterProvider,
     });
 
@@ -46,12 +55,16 @@ it('preserves the model routing preferences when fetched metadata is refreshed a
       model.id,
       provider,
       UpdateAiModelSchema.parse({
-        config: { openRouterProvider: null },
+        config: { customRequestParameters: [] },
       }),
     );
-    expect((await models.findByIdAndProvider(model.id, provider))?.config).toMatchObject({
-      openRouterProvider: null,
-    });
+    const empty = (await models.findByIdAndProvider(model.id, provider))?.config;
+    expect(empty).toMatchObject({ customRequestParameters: [], openRouterProvider });
+    expect(resolveModelRequestParameters(empty as any, provider)).toBeUndefined();
+    await models.clearRemoteModels(provider);
+    await models.batchUpdateAiModels(provider, [model]);
+    const refreshed = (await models.findByIdAndProvider(model.id, provider))?.config;
+    expect(resolveModelRequestParameters(refreshed as any, provider)).toBeUndefined();
   } finally {
     await db.delete(users).where(eq(users.id, userId));
   }

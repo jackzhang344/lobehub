@@ -11,7 +11,7 @@ export const maxDuration = 300;
 const handler = async (req: Request, { jwtPayload }: { jwtPayload?: any }) => {
   try {
     const body = await req.json();
-    const { model, params, options } = body;
+    const { model, params, options, requestParameterOverrides } = body;
 
     // Create tRPC caller with authentication context
     const createCaller = createCallerFactory(lambdaRouter);
@@ -26,6 +26,7 @@ const handler = async (req: Request, { jwtPayload }: { jwtPayload?: any }) => {
       model,
       options,
       params,
+      requestParameterOverrides,
     });
 
     return NextResponse.json(result);

@@ -12,12 +12,13 @@ import { pickModelConfigFormValues } from './utils';
 interface ModelConfigFooterProps {
   formRef: { current?: FormInstance };
   id: string;
+  parametersOnly?: boolean;
   showDeployName?: boolean;
-  showOpenRouterRouting?: boolean;
+  showRequestParameters?: boolean;
 }
 
 const ModelConfigFooter = memo<ModelConfigFooterProps>(
-  ({ formRef, id, showDeployName, showOpenRouterRouting }) => {
+  ({ formRef, id, parametersOnly, showDeployName, showRequestParameters }) => {
     const { t } = useTranslation(['common', 'error', 'modelProvider']);
     const { close } = useModalContext();
     const [loading, setLoading] = useState(false);
@@ -38,13 +39,15 @@ const ModelConfigFooter = memo<ModelConfigFooterProps>(
             let data: ReturnType<typeof pickModelConfigFormValues>;
             try {
               data = pickModelConfigFormValues(form.getValues(), {
+                parametersOnly,
                 showDeployName,
-                showOpenRouterRouting,
+                showRequestParameters,
               });
-            } catch {
+            } catch (error) {
               toast.error(
-                t('providerModels.item.modelConfig.openRouterRouting.invalid', {
+                t('providerModels.item.modelConfig.requestParameters.invalid', {
                   ns: 'modelProvider',
+                  reason: error instanceof Error ? error.message : '',
                 }),
               );
               return;

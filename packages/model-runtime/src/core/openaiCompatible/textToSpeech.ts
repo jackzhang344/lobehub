@@ -115,10 +115,13 @@ export const createOpenAICompatibleSpeech = async (
 
   let result: SpeechEventStreamResult;
   try {
-    const response = await client.audio.speech.create(body, {
-      headers: options?.headers,
-      signal: options?.signal,
-    });
+    const response = await client.audio.speech.create(
+      { ...body, ...options?.requestBodyOverrides },
+      {
+        headers: options?.headers,
+        signal: options?.signal,
+      },
+    );
 
     // OpenAI-compatible gateways may ignore `stream_format` and answer with raw audio.
     result = isEventStream(response)

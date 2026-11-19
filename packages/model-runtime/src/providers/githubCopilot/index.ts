@@ -241,6 +241,7 @@ export class LobeGithubCopilotAI implements LobeRuntimeAI {
           {
             ...finalPayload,
             metadata: options?.user ? { user_id: options.user } : undefined,
+            ...options?.requestBodyOverrides,
           },
           {
             headers: options?.requestHeaders,
@@ -344,9 +345,12 @@ export class LobeGithubCopilotAI implements LobeRuntimeAI {
           debugPayload(responsePayload);
         }
 
-        const response = await client.responses.create(responsePayload, {
-          signal: options?.signal,
-        });
+        const response = await client.responses.create(
+          { ...responsePayload, ...options?.requestBodyOverrides },
+          {
+            signal: options?.signal,
+          },
+        );
 
         if (shouldStream) {
           const stream = response as any;
@@ -414,9 +418,12 @@ export class LobeGithubCopilotAI implements LobeRuntimeAI {
         debugPayload(chatCompletionPayload);
       }
 
-      let response = await client.chat.completions.create(chatCompletionPayload, {
-        signal: options?.signal,
-      });
+      let response = await client.chat.completions.create(
+        { ...chatCompletionPayload, ...options?.requestBodyOverrides },
+        {
+          signal: options?.signal,
+        },
+      );
 
       if (shouldStream && debugParams.chatCompletion()) {
         const [prod, useForDebug] = (response as any).tee();

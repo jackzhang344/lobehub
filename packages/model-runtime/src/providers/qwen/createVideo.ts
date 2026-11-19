@@ -115,6 +115,7 @@ async function createVideoTask(
   taskType: 'video-generation' | 'image2video',
   provider: string,
   baseUrl: string,
+  requestBodyOverrides?: Record<string, unknown>,
 ): Promise<string> {
   const { model, params } = payload;
   const { prompt, imageUrl, imageUrls, endImageUrl } = params;
@@ -328,6 +329,7 @@ async function createVideoTask(
       input,
       model,
       parameters,
+      ...requestBodyOverrides,
     }),
     headers: {
       'Authorization': `Bearer ${apiKey}`,
@@ -395,7 +397,14 @@ export async function createQwenVideo(
     }
 
     // Create the video task
-    const taskId = await createVideoTask(payload, apiKey, taskType, provider, dashscopeURL);
+    const taskId = await createVideoTask(
+      payload,
+      apiKey,
+      taskType,
+      provider,
+      dashscopeURL,
+      options.requestBodyOverrides,
+    );
 
     log('Video task created with id: %s, returning immediately for frontend polling', taskId);
 

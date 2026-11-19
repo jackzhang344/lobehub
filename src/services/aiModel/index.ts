@@ -35,6 +35,10 @@ export class AiModelService {
     return lambdaClient.aiModel.getAiModelById.query({ id });
   };
 
+  getAiModelRequestConfig = async (id: string, providerId: string) => {
+    return lambdaClient.aiModel.getAiModelRequestConfig.query({ id, providerId });
+  };
+
   toggleModelEnabled = async (params: ToggleAiModelEnableParams) => {
     return lambdaClient.aiModel.toggleModelEnabled.mutate(params);
   };

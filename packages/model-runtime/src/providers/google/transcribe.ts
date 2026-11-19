@@ -122,6 +122,9 @@ export const createGoogleTranscription = async (
 
   const config: GenerateContentConfig = {
     abortSignal: options?.signal,
+    ...(options?.requestBodyOverrides && {
+      httpOptions: { extraBody: options.requestBodyOverrides },
+    }),
   };
 
   const response = await client.models.generateContent({

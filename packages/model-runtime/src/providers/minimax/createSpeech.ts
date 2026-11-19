@@ -196,7 +196,7 @@ export async function createMiniMaxSpeech(
     log('t2a_v2 request: model=%s voice=%s format=%s', requestModel, payload.voice, format);
 
     const response = await fetch(`${baseURL.replace(/\/+$/, '')}/t2a_v2`, {
-      body: JSON.stringify(body),
+      body: JSON.stringify({ ...body, ...options.requestBodyOverrides }),
       headers: {
         ...options.headers,
         'Authorization': `Bearer ${apiKey}`,

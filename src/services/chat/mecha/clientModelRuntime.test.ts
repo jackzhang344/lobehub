@@ -149,6 +149,8 @@ describe('ModelRuntimeOnClient', () => {
           expect.objectContaining({
             providerId: 'custom-router',
           }),
+          undefined,
+          expect.any(Function),
         );
       });
 
