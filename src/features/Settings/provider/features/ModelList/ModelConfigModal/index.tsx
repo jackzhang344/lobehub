@@ -10,6 +10,7 @@ import ModelConfigFooter from './Footer';
 interface ModelConfigModalOptions {
   id: string;
   showDeployName?: boolean;
+  showOpenRouterRouting?: boolean;
 }
 
 export const createModelConfigModal = (options: ModelConfigModalOptions): ModalInstance => {
@@ -20,6 +21,7 @@ export const createModelConfigModal = (options: ModelConfigModalOptions): ModalI
       <ModelConfigContent
         id={options.id}
         showDeployName={options.showDeployName}
+        showOpenRouterRouting={options.showOpenRouterRouting}
         onFormReady={(instance) => {
           formRef.current = instance;
         }}
@@ -30,6 +32,7 @@ export const createModelConfigModal = (options: ModelConfigModalOptions): ModalI
         formRef={formRef}
         id={options.id}
         showDeployName={options.showDeployName}
+        showOpenRouterRouting={options.showOpenRouterRouting}
       />
     ),
     maskClosable: true,

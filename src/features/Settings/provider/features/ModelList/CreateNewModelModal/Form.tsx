@@ -1,12 +1,12 @@
-import { Checkbox, Input, Select } from '@lobehub/ui';
+import { Checkbox, Input, Select, TextArea } from '@lobehub/ui';
 import { Form, type FormInstance, type FormValues, useForm } from '@lobehub/ui/form';
-import type { AiModelType } from 'model-bank';
+import type { AiModelType, AiProviderModelListItem } from 'model-bank';
 import { memo, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import MaxTokenSlider from '@/components/MaxTokenSlider';
-import { type ChatModelCard } from '@/types/llm';
 
+import { parseOpenRouterRouting } from '../ModelConfigModal/utils';
 import ExtendParamsSelect from './ExtendParamsSelect';
 import { CUSTOM_MODEL_TYPES, hasDuplicateModelId } from './utils';
 
@@ -14,15 +14,17 @@ interface ModelConfigFormProps {
   disabled?: boolean;
   existingModelIds?: string[];
   idEditable?: boolean;
-  initialValues?: ChatModelCard;
+  initialValues?: AiProviderModelListItem;
   onFormInstanceReady: (instance: FormInstance) => void;
   showDeployName?: boolean;
+  showOpenRouterRouting?: boolean;
   type?: AiModelType;
 }
 
 const ModelConfigForm = memo<ModelConfigFormProps>(
   ({
     showDeployName,
+    showOpenRouterRouting,
     idEditable = true,
     onFormInstanceReady,
     initialValues,
@@ -31,7 +33,15 @@ const ModelConfigForm = memo<ModelConfigFormProps>(
   }) => {
     const { t } = useTranslation('modelProvider');
 
-    const formInstance = useForm<FormValues>({ initialValues });
+    const savedRouting = initialValues?.config?.openRouterProvider;
+    const formInstance = useForm<FormValues>({
+      initialValues: showOpenRouterRouting
+        ? {
+            ...initialValues,
+            openRouterRoutingJson: savedRouting ? JSON.stringify(savedRouting, null, 2) : '',
+          }
+        : initialValues,
+    });
 
     const modelTypeOptions = useMemo(
       () =>
@@ -48,7 +58,7 @@ const ModelConfigForm = memo<ModelConfigFormProps>(
 
     useEffect(() => {
       onFormInstanceReady(formInstance);
-    }, []);
+    }, [formInstance, onFormInstanceReady]);
 
     return (
       <div
@@ -97,6 +107,29 @@ const ModelConfigForm = memo<ModelConfigFormProps>(
               placeholder={t('providerModels.item.modelConfig.displayName.placeholder')}
             />
           </Form.Field>
+          {showOpenRouterRouting && (
+            <Form.Field
+              extra={t('providerModels.item.modelConfig.openRouterRouting.extra')}
+              label={t('providerModels.item.modelConfig.openRouterRouting.title')}
+              name={'openRouterRoutingJson'}
+              validate={(value?: string) => {
+                try {
+                  parseOpenRouterRouting(value);
+                  return undefined;
+                } catch {
+                  return t('providerModels.item.modelConfig.openRouterRouting.invalid');
+                }
+              }}
+            >
+              <TextArea
+                disabled={disabled}
+                maxLength={8192}
+                placeholder={'{"sort":"price","zdr":true}'}
+                rows={5}
+                spellCheck={false}
+              />
+            </Form.Field>
+          )}
           <Form.Field
             extra={t('providerModels.item.modelConfig.tokens.extra')}
             label={t('providerModels.item.modelConfig.tokens.title')}

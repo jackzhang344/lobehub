@@ -572,16 +572,15 @@ export class AiModelModel {
 
   clearRemoteModels(providerId: string) {
     return this.db.transaction(async (trx) => {
-      // A remote row that accumulated a personal reasoning preference
-      // (remote-first order: fetched, then the user saved an Effort default —
-      // see updateModelReasoningConfig) must not lose it. Demote the row to a
-      // preference-only shape (strip remote metadata, drop the remote source)
-      // instead of deleting it.
+      // Strip fetched metadata but keep user preferences on rows that carry them.
       await trx
         .update(aiModels)
         .set({
           abilities: null,
-          config: sql`jsonb_build_object('chatConfig', ${aiModels.config} -> 'chatConfig')`,
+          config: sql`jsonb_build_object(
+            'chatConfig', ${aiModels.config} -> 'chatConfig',
+            'openRouterProvider', ${aiModels.config} -> 'openRouterProvider'
+          )`,
           contextWindowTokens: null,
           description: null,
           displayName: null,
@@ -601,7 +600,10 @@ export class AiModelModel {
             eq(aiModels.source, AiModelSourceEnum.Remote),
             // NOT `config -> 'chatConfig' IS NOT NULL`: jsonb null tests in
             // WHERE clauses crash the production engine (see jsonbNullTest)
-            sql`COALESCE(${aiModels.config} ->> 'chatConfig', '') <> ''`,
+            sql`(
+              COALESCE(${aiModels.config} ->> 'chatConfig', '') <> ''
+              OR COALESCE(${aiModels.config} ->> 'openRouterProvider', '') <> ''
+            )`,
             this.scopeWhere(),
           ),
         );

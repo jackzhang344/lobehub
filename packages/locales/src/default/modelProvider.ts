@@ -366,6 +366,11 @@ export default {
   'providerModels.item.modelConfig.reasoning.extra':
     "This configuration will enable the model's deep thinking capabilities, and the specific effects depend entirely on the model itself. Please test whether this model has usable deep thinking abilities.",
   'providerModels.item.modelConfig.reasoning.title': 'Support Deep Thinking',
+  'providerModels.item.modelConfig.openRouterRouting.extra':
+    'Paste OpenRouter Provider Preferences JSON for this model. Leave blank to use OpenRouter’s default routing.',
+  'providerModels.item.modelConfig.openRouterRouting.invalid':
+    'Enter a valid Provider Preferences JSON object or leave the field blank.',
+  'providerModels.item.modelConfig.openRouterRouting.title': 'OpenRouter routing preferences',
   'providerModels.item.modelConfig.search.extra':
     "This setting enables the model's built-in web search capability. Whether the built-in search engine is supported depends on the model itself. Please test the model to verify the availability of this feature.",
   'providerModels.item.modelConfig.search.title': 'Supports Web Search',

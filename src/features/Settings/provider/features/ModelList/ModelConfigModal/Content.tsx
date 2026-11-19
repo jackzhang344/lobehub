@@ -12,20 +12,24 @@ interface ModelConfigContentProps {
   id: string;
   onFormReady: (instance: FormInstance) => void;
   showDeployName?: boolean;
+  showOpenRouterRouting?: boolean;
 }
 
-const ModelConfigContent = memo<ModelConfigContentProps>(({ id, showDeployName, onFormReady }) => {
-  const model = useAiInfraStore(aiModelSelectors.getAiModelById(id), isEqual);
+const ModelConfigContent = memo<ModelConfigContentProps>(
+  ({ id, showDeployName, showOpenRouterRouting, onFormReady }) => {
+    const model = useAiInfraStore(aiModelSelectors.getAiModelById(id), isEqual);
 
-  return (
-    <ModelConfigForm
-      idEditable={false}
-      initialValues={model}
-      showDeployName={showDeployName}
-      type={model?.type}
-      onFormInstanceReady={onFormReady}
-    />
-  );
-});
+    return (
+      <ModelConfigForm
+        idEditable={false}
+        initialValues={model}
+        showDeployName={showDeployName}
+        showOpenRouterRouting={showOpenRouterRouting}
+        type={model?.type}
+        onFormInstanceReady={onFormReady}
+      />
+    );
+  },
+);
 
 export default ModelConfigContent;

@@ -12,8 +12,8 @@ import {
 import { cssVar as sxVar } from '@lobehub/ui/stylex/cssVar.stylex';
 import * as stylex from '@stylexjs/stylex';
 import { LucidePencil, TrashIcon } from 'lucide-react';
-import { type AiProviderModelListItem } from 'model-bank';
-import { AiModelSourceEnum } from 'model-bank/aiModel';
+import { AiModelSourceEnum, type AiProviderModelListItem } from 'model-bank/aiModel';
+import { ModelProvider } from 'model-bank/modelProvider';
 import React, { memo, use, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -126,7 +126,12 @@ const ModelItem = memo<ModelItemProps>(
             onClick={(e) => {
               e.stopPropagation();
               if (!canManageProvider) return;
-              createModelConfigModal({ id, showDeployName });
+              createModelConfigModal({
+                id,
+                showDeployName,
+                showOpenRouterRouting:
+                  activeAiProvider === ModelProvider.OpenRouter && type === 'chat',
+              });
             }}
           />
           {source !== AiModelSourceEnum.Builtin && (

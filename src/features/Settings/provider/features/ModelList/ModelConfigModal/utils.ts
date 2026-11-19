@@ -1,5 +1,11 @@
 import type { FormValues } from '@lobehub/ui/form';
-import type { UpdateAiModelParams } from 'model-bank';
+import { OpenRouterProviderPreferencesSchema, type UpdateAiModelParams } from 'model-bank/aiModel';
+
+export const parseOpenRouterRouting = (value?: string) => {
+  if (!value?.trim()) return null;
+  const preferences = OpenRouterProviderPreferencesSchema.parse(JSON.parse(value));
+  return Object.keys(preferences).length > 0 ? preferences : null;
+};
 
 const EDITABLE_ABILITIES = [
   'functionCall',
@@ -20,7 +26,13 @@ const EDITABLE_ABILITIES = [
  */
 export const pickModelConfigFormValues = (
   values: FormValues,
-  { showDeployName }: { showDeployName?: boolean } = {},
+  {
+    showDeployName,
+    showOpenRouterRouting,
+  }: {
+    showDeployName?: boolean;
+    showOpenRouterRouting?: boolean;
+  } = {},
 ): UpdateAiModelParams => {
   const abilities = (values.abilities ?? {}) as Record<string, unknown>;
   const settings = (values.settings ?? {}) as Record<string, unknown>;
@@ -30,9 +42,19 @@ export const pickModelConfigFormValues = (
     abilities: Object.fromEntries(
       EDITABLE_ABILITIES.map((key) => [key, abilities[key] ?? undefined]),
     ) as UpdateAiModelParams['abilities'],
-    config: showDeployName
-      ? { deploymentName: (config.deploymentName as string | undefined) ?? undefined }
-      : undefined,
+    config:
+      showDeployName || showOpenRouterRouting
+        ? {
+            ...(showDeployName && {
+              deploymentName: (config.deploymentName as string | undefined) ?? undefined,
+            }),
+            ...(showOpenRouterRouting && {
+              openRouterProvider: parseOpenRouterRouting(
+                values.openRouterRoutingJson as string | undefined,
+              ),
+            }),
+          }
+        : undefined,
     contextWindowTokens: values.contextWindowTokens as number | null | undefined,
     displayName: values.displayName as string | null | undefined,
     settings: {

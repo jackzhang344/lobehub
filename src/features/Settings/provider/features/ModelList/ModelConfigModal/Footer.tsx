@@ -13,44 +13,60 @@ interface ModelConfigFooterProps {
   formRef: { current?: FormInstance };
   id: string;
   showDeployName?: boolean;
+  showOpenRouterRouting?: boolean;
 }
 
-const ModelConfigFooter = memo<ModelConfigFooterProps>(({ formRef, id, showDeployName }) => {
-  const { t } = useTranslation(['common', 'error']);
-  const { close } = useModalContext();
-  const [loading, setLoading] = useState(false);
-  const [editingProvider, updateAiModelsConfig] = useAiInfraStore((s) => [
-    s.activeAiProvider!,
-    s.updateAiModelsConfig,
-  ]);
+const ModelConfigFooter = memo<ModelConfigFooterProps>(
+  ({ formRef, id, showDeployName, showOpenRouterRouting }) => {
+    const { t } = useTranslation(['common', 'error', 'modelProvider']);
+    const { close } = useModalContext();
+    const [loading, setLoading] = useState(false);
+    const [editingProvider, updateAiModelsConfig] = useAiInfraStore((s) => [
+      s.activeAiProvider!,
+      s.updateAiModelsConfig,
+    ]);
 
-  return (
-    <ModalFooter>
-      <Button onClick={close}>{t('cancel', { ns: 'common' })}</Button>
-      <Button
-        loading={loading}
-        type="primary"
-        onClick={async () => {
-          const form = formRef.current;
-          if (!editingProvider || !id || !form) return;
-          const data = pickModelConfigFormValues(form.getValues(), { showDeployName });
+    return (
+      <ModalFooter>
+        <Button onClick={close}>{t('cancel', { ns: 'common' })}</Button>
+        <Button
+          loading={loading}
+          type="primary"
+          onClick={async () => {
+            const form = formRef.current;
+            if (!editingProvider || !id || !form) return;
+            let data: ReturnType<typeof pickModelConfigFormValues>;
+            try {
+              data = pickModelConfigFormValues(form.getValues(), {
+                showDeployName,
+                showOpenRouterRouting,
+              });
+            } catch {
+              toast.error(
+                t('providerModels.item.modelConfig.openRouterRouting.invalid', {
+                  ns: 'modelProvider',
+                }),
+              );
+              return;
+            }
 
-          setLoading(true);
-          try {
-            await updateAiModelsConfig(id, editingProvider, data);
-            close();
-          } catch (error) {
-            console.error(error);
-            toast.error(t('saveState.saveFailed', { ns: 'error' }));
-          } finally {
-            setLoading(false);
-          }
-        }}
-      >
-        {t('ok', { ns: 'common' })}
-      </Button>
-    </ModalFooter>
-  );
-});
+            setLoading(true);
+            try {
+              await updateAiModelsConfig(id, editingProvider, data);
+              close();
+            } catch (error) {
+              console.error(error);
+              toast.error(t('saveState.saveFailed', { ns: 'error' }));
+            } finally {
+              setLoading(false);
+            }
+          }}
+        >
+          {t('ok', { ns: 'common' })}
+        </Button>
+      </ModalFooter>
+    );
+  },
+);
 
 export default ModelConfigFooter;
