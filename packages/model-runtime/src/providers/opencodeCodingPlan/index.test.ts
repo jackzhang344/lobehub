@@ -72,6 +72,14 @@ describe('LobeOpenCodeCodingPlanAI', () => {
             options: { apiKey: 'test', baseURL: openaiURL, sdkType: 'openai' },
           }),
           expect.objectContaining({
+            apiType: 'google',
+            options: {
+              apiKey: 'test',
+              baseURL: 'https://opencode.ai/inference/go/google',
+              defaultHeaders: { 'User-Agent': 'lobehub', 'x-opencode-client': 'lobehub' },
+            },
+          }),
+          expect.objectContaining({
             apiType: 'openai',
             options: { apiKey: 'test', baseURL: openaiURL },
           }),
@@ -502,5 +510,96 @@ describe('buildOpenAIPayload Kimi thinking semantics', () => {
       // With thinking explicitly disabled, assistant messages are not forced to carry reasoning_content.
       expect(findAssistantMessage(payload)?.reasoning_content).toBeUndefined();
     });
+  });
+
+  describe('variant-gated K3.1 model (kimi-k3.1-pro)', () => {
+    it.each(['low', 'high', 'max'] as const)(
+      "should forward reasoning_effort '%s' (Go accepts low/high/max on k3.1+)",
+      async (effort) => {
+        await instance.chat({
+          messages: [{ content: 'Hello', role: 'user' }],
+          model: 'kimi-k3.1-pro',
+          reasoning_effort: effort,
+        } as any);
+
+        expect(getLastRequestPayload().reasoning_effort).toBe(effort);
+      },
+    );
+
+    it("should drop a generic 'medium' effort instead of sending a value the API rejects", async () => {
+      await instance.chat({
+        messages: [{ content: 'Hello', role: 'user' }],
+        model: 'kimi-k3.1-pro',
+        reasoning_effort: 'medium',
+      } as any);
+
+      expect('reasoning_effort' in getLastRequestPayload()).toBe(false);
+    });
+
+    it('should honor models.dev reasoning_options when available', async () => {
+      vi.resetModules();
+      const { LobeOpenCodeCodingPlanAI: Runtime } = await import('./index');
+      vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            'opencode-go': {
+              models: {
+                'kimi-k3.1-pro': {
+                  id: 'kimi-k3.1-pro',
+                  reasoning_options: [{ type: 'effort', values: ['low', 'high', 'max'] }],
+                },
+              },
+            },
+          }),
+        ),
+      );
+      const freshInstance = new Runtime({ apiKey: 'test' });
+
+      await freshInstance.chat({
+        messages: [{ content: 'Hello', role: 'user' }],
+        model: 'kimi-k3.1-pro',
+        reasoning_effort: 'medium',
+      } as any);
+
+      expect('reasoning_effort' in getLastRequestPayload()).toBe(false);
+    });
+  });
+});
+
+describe('Google route', () => {
+  beforeEach(() => {
+    loadModelsMock.mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('routes models.dev Google-SDK models to the version-stripped Google endpoint', async () => {
+    vi.resetModules();
+    const { params: freshParams } = await import('./index');
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          'opencode-go': {
+            models: {
+              'gemini-4-argon': {
+                id: 'gemini-4-argon',
+                provider: {
+                  api: 'https://opencode.ai/inference/go/google/v1beta',
+                  npm: '@ai-sdk/google',
+                },
+              },
+            },
+          },
+        }),
+      ),
+    );
+
+    const routers = await freshParams.routers({ apiKey: 'test' });
+    const googleRoute = routers.find((router: any) => router.apiType === 'google');
+
+    expect(googleRoute.models).toEqual(['gemini-4-argon']);
+    expect(googleRoute.options.baseURL).toBe('https://opencode.ai/inference/go/google');
   });
 });
