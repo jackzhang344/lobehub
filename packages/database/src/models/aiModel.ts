@@ -201,6 +201,25 @@ export class AiModelModel {
     });
   };
 
+  getRequestParameterConfig = async (id: string, providerId: string) => {
+    const row = await this.db.query.aiModels.findFirst({
+      columns: { config: true },
+      where: and(
+        eq(aiModels.id, id),
+        eq(aiModels.providerId, providerId),
+        eq(aiModels.userId, this.userId),
+        this.scopeWhere(),
+      ),
+    });
+    const config = row?.config as AiModelConfig | null | undefined;
+    return config
+      ? {
+          customRequestParameters: config.customRequestParameters,
+          openRouterProvider: config.openRouterProvider,
+        }
+      : undefined;
+  };
+
   update = async (id: string, providerId: string, value: Partial<AiModelSelectItem>) => {
     const normalizedValue = this.normalizeAiModelValues(value);
 
@@ -572,16 +591,16 @@ export class AiModelModel {
 
   clearRemoteModels(providerId: string) {
     return this.db.transaction(async (trx) => {
-      // A remote row that accumulated a personal reasoning preference
-      // (remote-first order: fetched, then the user saved an Effort default —
-      // see updateModelReasoningConfig) must not lose it. Demote the row to a
-      // preference-only shape (strip remote metadata, drop the remote source)
-      // instead of deleting it.
+      // Strip fetched metadata but keep user preferences on rows that carry them.
       await trx
         .update(aiModels)
         .set({
           abilities: null,
-          config: sql`jsonb_build_object('chatConfig', ${aiModels.config} -> 'chatConfig')`,
+          config: sql`jsonb_build_object(
+            'chatConfig', ${aiModels.config} -> 'chatConfig',
+            'customRequestParameters', ${aiModels.config} -> 'customRequestParameters',
+            'openRouterProvider', ${aiModels.config} -> 'openRouterProvider'
+          )`,
           contextWindowTokens: null,
           description: null,
           displayName: null,
@@ -601,7 +620,11 @@ export class AiModelModel {
             eq(aiModels.source, AiModelSourceEnum.Remote),
             // NOT `config -> 'chatConfig' IS NOT NULL`: jsonb null tests in
             // WHERE clauses crash the production engine (see jsonbNullTest)
-            sql`COALESCE(${aiModels.config} ->> 'chatConfig', '') <> ''`,
+            sql`(
+              COALESCE(${aiModels.config} ->> 'chatConfig', '') <> ''
+              OR COALESCE(${aiModels.config} ->> 'openRouterProvider', '') <> ''
+              OR COALESCE(${aiModels.config} ->> 'customRequestParameters', '') NOT IN ('', '[]')
+            )`,
             this.scopeWhere(),
           ),
         );

@@ -74,7 +74,7 @@ export async function createHunyuanImage(
       log('Submit body: %O', requestBody);
 
       const submitResponse = await fetch(submitUrl, {
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify({ ...requestBody, ...options.requestBodyOverrides }),
         headers: {
           'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
@@ -127,7 +127,7 @@ export async function createHunyuanImage(
     log('Submit body: %O', requestBody);
 
     const submitResponse = await fetch(submitUrl, {
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify({ ...requestBody, ...options.requestBodyOverrides }),
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',

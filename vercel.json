@@ -1,5 +1,5 @@
 {
-  "buildCommand": "bun run build:vercel",
+  "buildCommand": "node scripts/configure-neon-storage-cors.mjs && bun run build:vercel",
   "headers": [
     {
       "source": "/_spa/(.*)",

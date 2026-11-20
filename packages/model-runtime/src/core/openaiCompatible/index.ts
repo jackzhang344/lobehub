@@ -18,6 +18,7 @@ import type {
 } from '../../types';
 import type { CreateImageMethodOptions, CreateImagePayload } from '../../types/image';
 import type {
+  CreateVideoMethodOptions,
   CreateVideoPayload,
   CreateVideoResult,
   HandleCreateVideoWebhookPayload,
@@ -410,6 +411,7 @@ export const createOpenAICompatibleRuntime = <T extends Record<string, any> = an
         log('using custom createImage implementation');
         return customCreateImage(payload, {
           ...this._options,
+          requestBodyOverrides: options?.requestBodyOverrides,
           apiKey: this._options.apiKey!,
           modelIdMapping: this.modelIdMappingOptions.modelIdMapping,
           provider,
@@ -421,18 +423,23 @@ export const createOpenAICompatibleRuntime = <T extends Record<string, any> = an
       return createOpenAICompatibleImage(this.client, payload, this.id, {
         pricingContext: options?.pricingContext,
         pricingModel: payload.model,
+        requestBodyOverrides: options?.requestBodyOverrides,
         requestModel: resolveMappedModelId(payload.model, this.modelIdMappingOptions),
         routingModel: payload.model,
       });
     }
 
-    async createVideo(payload: CreateVideoPayload): Promise<CreateVideoResult> {
+    async createVideo(
+      payload: CreateVideoPayload,
+      options?: CreateVideoMethodOptions,
+    ): Promise<CreateVideoResult> {
       const log = debug(`${this.logPrefix}:createVideo`);
 
       if (customCreateVideo) {
         log('using custom createVideo implementation');
         return customCreateVideo(payload, {
           ...this._options,
+          requestBodyOverrides: options?.requestBodyOverrides,
           apiKey: this._options.apiKey!,
           modelIdMapping: this.modelIdMappingOptions.modelIdMapping,
           provider,
@@ -442,6 +449,7 @@ export const createOpenAICompatibleRuntime = <T extends Record<string, any> = an
       log('using default createOpenAICompatibleVideo');
       return createOpenAICompatibleVideo(payload, {
         ...this._options,
+        requestBodyOverrides: options?.requestBodyOverrides,
         apiKey: this._options.apiKey!,
         baseURL: this._options.baseURL || '',
         modelIdMapping: this.modelIdMappingOptions.modelIdMapping,
@@ -503,7 +511,12 @@ export const createOpenAICompatibleRuntime = <T extends Record<string, any> = an
 
       try {
         const res = await this.client.embeddings.create(
-          { ...requestPayload, encoding_format: 'float', user: options?.user },
+          {
+            ...requestPayload,
+            encoding_format: 'float',
+            user: options?.user,
+            ...options?.requestBodyOverrides,
+          },
           { headers: options?.headers, signal: options?.signal },
         );
 
@@ -562,6 +575,7 @@ export const createOpenAICompatibleRuntime = <T extends Record<string, any> = an
             prompt,
             response_format: responseFormat,
             temperature,
+            ...options?.requestBodyOverrides,
           },
           { headers: options?.headers, signal: options?.signal },
         );

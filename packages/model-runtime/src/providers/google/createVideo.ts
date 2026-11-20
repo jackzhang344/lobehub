@@ -5,6 +5,7 @@ import debug from 'debug';
 import { GEMINI_OMNI_VIDEO_MODEL_ID } from 'model-bank/standardParameters';
 
 import type {
+  CreateVideoMethodOptions,
   CreateVideoPayload,
   CreateVideoResult,
   VideoGenerationUsage,
@@ -154,6 +155,7 @@ const convertOmniUsage = (usage: OmniUsage | undefined): VideoGenerationUsage | 
 async function createGoogleOmniVideo(
   client: GoogleGenAI,
   payload: CreateVideoPayload,
+  options?: CreateVideoMethodOptions,
 ): Promise<CreateVideoResult> {
   const { callbackUrl, model, params, previousInteractionId } = payload;
   const { aspectRatio, endImageUrl, imageUrl, imageUrls, prompt, resolution } = params;
@@ -208,6 +210,7 @@ async function createGoogleOmniVideo(
       type: 'video',
     },
     store: true,
+    ...options?.requestBodyOverrides,
     ...(callbackUrl
       ? {
           webhook_config: {
@@ -226,12 +229,13 @@ export async function createGoogleVideo(
   client: GoogleGenAI,
   provider: string,
   payload: CreateVideoPayload,
+  options?: CreateVideoMethodOptions,
 ): Promise<CreateVideoResult> {
   try {
     const { model, params } = payload;
 
     if (isGeminiOmniVideoModel(model)) {
-      return await createGoogleOmniVideo(client, payload);
+      return await createGoogleOmniVideo(client, payload, options);
     }
 
     const {
@@ -250,6 +254,9 @@ export async function createGoogleVideo(
 
     // https://github.com/googleapis/js-genai/blob/main/src/types.ts
     const config: GenerateVideosConfig = {
+      ...(options?.requestBodyOverrides && {
+        httpOptions: { extraBody: options.requestBodyOverrides },
+      }),
       ...(aspectRatio && { aspectRatio }),
       ...(duration && { durationSeconds: duration }),
       ...(endImageUrl ? { lastFrame: await imageToGoogleImageFormat(endImageUrl) } : {}),

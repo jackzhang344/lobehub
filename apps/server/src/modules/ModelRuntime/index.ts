@@ -27,11 +27,12 @@ import {
 } from '@lobechat/types';
 import { safeParseJSON } from '@lobechat/utils';
 import type { AiFullModelCard } from 'model-bank';
-import { isAiModelVisible, ModelProvider } from 'model-bank';
+import { isAiModelVisible, ModelProvider, resolveModelRequestParameters } from 'model-bank';
 import { AiProviderBaseURLSchema } from 'model-bank/aiProvider';
 import { DEFAULT_MODEL_PROVIDER_LIST } from 'model-bank/modelProviders';
 
 import { getBusinessModelRuntimeHooks } from '@/business/server/model-runtime';
+import { AiModelModel } from '@/database/models/aiModel';
 import { AiProviderModel } from '@/database/models/aiProvider';
 import { type LobeChatDatabase } from '@/database/type';
 import { getLLMConfig } from '@/envs/llm';
@@ -439,6 +440,7 @@ export const initModelRuntimeWithUserPayload = (
   payload: ClientSecretPayload,
   params: any = {},
   hooks?: ModelRuntimeHooks,
+  resolveRequestBodyOverrides?: ConstructorParameters<typeof ModelRuntime>[2],
 ) => {
   const runtimeProvider = payload.runtimeProvider ?? provider;
 
@@ -461,7 +463,7 @@ export const initModelRuntimeWithUserPayload = (
     );
     const runtime = LobeVertexAI.initFromVertexAI(vertexOptions);
 
-    return new ModelRuntime(runtime, hooks);
+    return new ModelRuntime(runtime, hooks, resolveRequestBodyOverrides);
   }
 
   return ModelRuntime.initializeWithProvider(
@@ -471,6 +473,7 @@ export const initModelRuntimeWithUserPayload = (
       ...params,
     },
     hooks,
+    resolveRequestBodyOverrides,
   );
 };
 
@@ -545,8 +548,19 @@ export const initModelRuntimeFromDB = async (
   const tracingHooks = createLLMGenerationTracingHook(userId, provider, workspaceId);
   const hooks = mergeModelRuntimeHooks(businessHooks, tracingHooks);
 
-  // 6. Initialize ModelRuntime with the payload and hooks
-  return initModelRuntimeWithUserPayload(provider, payload, { userId, workspaceId }, hooks);
+  const aiModelModel = new AiModelModel(db, userId, workspaceId);
+  const resolveRequestBodyOverrides = async (modelId: string) => {
+    const config = await aiModelModel.getRequestParameterConfig(modelId, provider);
+    return resolveModelRequestParameters(config, provider);
+  };
+
+  return initModelRuntimeWithUserPayload(
+    provider,
+    payload,
+    { userId, workspaceId },
+    hooks,
+    resolveRequestBodyOverrides,
+  );
 };
 
 /**

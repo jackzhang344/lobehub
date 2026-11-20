@@ -1,5 +1,6 @@
 import type { ModelUsage } from '@lobechat/types';
 import type { RuntimeImageGenParams } from 'model-bank';
+import type { ModelRequestParameterOptions } from 'model-bank/aiModel';
 
 import type { ModelPricingContext } from './pricing';
 
@@ -8,7 +9,7 @@ export type CreateImagePayload = {
   params: RuntimeImageGenParams;
 };
 
-export interface CreateImageMethodOptions {
+export interface CreateImageMethodOptions extends ModelRequestParameterOptions {
   /** Metadata passed to hooks (billing, tracing, etc.) */
   metadata?: Record<string, unknown>;
   /** Request-scoped pricing context for model-bank pricing lookups. */

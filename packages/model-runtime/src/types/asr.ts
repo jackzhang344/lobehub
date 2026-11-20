@@ -1,3 +1,5 @@
+import type { ModelRequestParameterOptions } from 'model-bank/aiModel';
+
 import type { ModelPricingContext } from './pricing';
 import type { OnUsageCallback } from './routeAttempt';
 
@@ -33,7 +35,7 @@ export interface ASRPayload {
   temperature?: number;
 }
 
-export interface ASROptions {
+export interface ASROptions extends ModelRequestParameterOptions {
   headers?: Record<string, any>;
   /** Metadata passed to hooks (billing, tracing, route attempts), e.g. `trigger`. */
   metadata?: Record<string, unknown>;

@@ -138,6 +138,30 @@ describe('S3StaticFileImpl', () => {
       config.S3_SET_ACL = true;
     });
 
+    it('renews a private image signature when a conversation is reopened the next day', async () => {
+      vi.useFakeTimers();
+      config.S3_SET_ACL = false;
+      const signer = vi.mocked(fileService['s3'].createPreSignedUrlForPreview);
+      signer
+        .mockResolvedValueOnce('https://presigned.example.com/day-one.jpg')
+        .mockResolvedValueOnce('https://presigned.example.com/day-two.jpg');
+
+      try {
+        const key = 'files/overnight-preview-regression.jpg';
+        await expect(fileService.getFullFileUrl(key)).resolves.toBe(
+          'https://presigned.example.com/day-one.jpg',
+        );
+        vi.advanceTimersByTime(11 * 60 * 60 * 1000);
+        await expect(fileService.getFullFileUrl(key)).resolves.toBe(
+          'https://presigned.example.com/day-two.jpg',
+        );
+        expect(signer).toHaveBeenCalledTimes(2);
+      } finally {
+        config.S3_SET_ACL = true;
+        vi.useRealTimers();
+      }
+    });
+
     it('should reuse Redis cached presigned preview URL across function instances', async () => {
       config.S3_SET_ACL = false;
       redisMocks.getRedisConfig.mockReturnValue({

@@ -33,6 +33,7 @@ import { AgentRuntimeErrorType } from '../../types/error';
 import type { CreateImagePayload, CreateImageResponse } from '../../types/image';
 import type { ProviderResponseDiagnostics } from '../../types/providerDiagnostics';
 import type {
+  CreateVideoMethodOptions,
   CreateVideoPayload,
   CreateVideoResult,
   VideoGenerationCapabilities,
@@ -272,7 +273,16 @@ export class LobeGoogleAI implements LobeRuntimeAI {
 
       const inputStartAt = Date.now();
 
-      const finalPayload = { config, contents, model: requestModel };
+      const finalPayload = {
+        config: options?.requestBodyOverrides
+          ? {
+              ...config,
+              httpOptions: { ...config.httpOptions, extraBody: options.requestBodyOverrides },
+            }
+          : config,
+        contents,
+        model: requestModel,
+      };
       const key = this.isVertexAi
         ? 'DEBUG_VERTEX_AI_CHAT_COMPLETION'
         : 'DEBUG_GOOGLE_CHAT_COMPLETION';
@@ -352,11 +362,15 @@ export class LobeGoogleAI implements LobeRuntimeAI {
     return createGoogleImage(this.client, this.provider, requestPayload, {
       pricingContext: options?.pricingContext,
       pricingModel: payload.model,
+      requestBodyOverrides: options?.requestBodyOverrides,
       routingModel: payload.model,
     });
   }
 
-  async createVideo(payload: CreateVideoPayload): Promise<CreateVideoResult> {
+  async createVideo(
+    payload: CreateVideoPayload,
+    options?: CreateVideoMethodOptions,
+  ): Promise<CreateVideoResult> {
     const requestPayload = withMappedModelId(payload, this.modelIdMappingOptions);
 
     if (this.isVertexAi && isGeminiOmniVideoModel(requestPayload.model)) {
@@ -369,7 +383,7 @@ export class LobeGoogleAI implements LobeRuntimeAI {
       });
     }
 
-    return createGoogleVideo(this.client, this.provider, requestPayload);
+    return createGoogleVideo(this.client, this.provider, requestPayload, options);
   }
 
   getVideoGenerationCapabilities(model: string): VideoGenerationCapabilities {

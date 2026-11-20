@@ -95,7 +95,7 @@ export class LobeCloudflareAI implements LobeRuntimeAI {
     }
     const url = new URL(model, this.baseURL);
     const desensitizedEndpoint = desensitizeCloudflareUrl(url.toString());
-    const requestPayload = { tools: functions, ...restPayload };
+    const requestPayload = { tools: functions, ...restPayload, ...options?.requestBodyOverrides };
     const providerResponseDiagnostics = initializeProviderDiagnostics({
       apiMode: 'cloudflare_workers_ai',
       diagnostics: options?.diagnostics,

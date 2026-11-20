@@ -106,18 +106,21 @@ export const generateObjectViaToolCalling = async (
   };
 
   const res = await runtime.client.chat.completions.create(
-    runtime.withMappedRequestModel(
-      handleGenerateObjectPayload(runtime, factory, payload, {
-        ...getGenerateObjectReasoningParams(payload),
-        messages: await convertGenerateObjectMessages(runtime, factory, payload),
-        model,
-        ...runtime.resolvePromptCacheKeyParams(model, options?.user),
-        tool_choice: { function: { name: tool.function.name }, type: 'function' },
-        tools: [tool],
-        user: options?.user,
-      }),
-      payload.model,
-    ) as OpenAI.ChatCompletionCreateParamsNonStreaming,
+    {
+      ...runtime.withMappedRequestModel(
+        handleGenerateObjectPayload(runtime, factory, payload, {
+          ...getGenerateObjectReasoningParams(payload),
+          messages: await convertGenerateObjectMessages(runtime, factory, payload),
+          model,
+          ...runtime.resolvePromptCacheKeyParams(model, options?.user),
+          tool_choice: { function: { name: tool.function.name }, type: 'function' },
+          tools: [tool],
+          user: options?.user,
+        }),
+        payload.model,
+      ),
+      ...options?.requestBodyOverrides,
+    } as OpenAI.ChatCompletionCreateParamsNonStreaming,
     { headers: options?.headers, signal: options?.signal },
   );
 
@@ -153,17 +156,20 @@ export const generateObjectViaJsonSchema = async (
   let res: OpenAI.ChatCompletion;
   try {
     res = await runtime.client.chat.completions.create(
-      runtime.withMappedRequestModel(
-        handleGenerateObjectPayload(runtime, factory, payload, {
-          ...getGenerateObjectReasoningParams(payload),
-          messages: await convertGenerateObjectMessages(runtime, factory, payload),
+      {
+        ...runtime.withMappedRequestModel(
+          handleGenerateObjectPayload(runtime, factory, payload, {
+            ...getGenerateObjectReasoningParams(payload),
+            messages: await convertGenerateObjectMessages(runtime, factory, payload),
+            model,
+            response_format: { json_schema: processedSchema, type: 'json_schema' },
+            ...runtime.resolvePromptCacheKeyParams(model, options?.user),
+            user: options?.user,
+          }),
           model,
-          response_format: { json_schema: processedSchema, type: 'json_schema' },
-          ...runtime.resolvePromptCacheKeyParams(model, options?.user),
-          user: options?.user,
-        }),
-        model,
-      ) as OpenAI.ChatCompletionCreateParamsNonStreaming,
+        ),
+        ...options?.requestBodyOverrides,
+      } as OpenAI.ChatCompletionCreateParamsNonStreaming,
       { headers: options?.headers, signal: options?.signal },
     );
   } catch (error) {
@@ -202,18 +208,21 @@ export const generateToolCallsViaChatCompletions = async (
   const msgs = await convertGenerateObjectMessages(runtime, factory, payload);
 
   const res = await runtime.client.chat.completions.create(
-    runtime.withMappedRequestModel(
-      handleGenerateObjectPayload(runtime, factory, payload, {
-        ...getGenerateObjectReasoningParams(payload),
-        messages: msgs,
-        model,
-        ...runtime.resolvePromptCacheKeyParams(model, options?.user),
-        tool_choice: 'required',
-        tools,
-        user: options?.user,
-      }),
-      payload.model,
-    ) as OpenAI.ChatCompletionCreateParamsNonStreaming,
+    {
+      ...runtime.withMappedRequestModel(
+        handleGenerateObjectPayload(runtime, factory, payload, {
+          ...getGenerateObjectReasoningParams(payload),
+          messages: msgs,
+          model,
+          ...runtime.resolvePromptCacheKeyParams(model, options?.user),
+          tool_choice: 'required',
+          tools,
+          user: options?.user,
+        }),
+        payload.model,
+      ),
+      ...options?.requestBodyOverrides,
+    } as OpenAI.ChatCompletionCreateParamsNonStreaming,
     { headers: options?.headers, signal: options?.signal },
   );
 

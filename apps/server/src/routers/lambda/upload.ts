@@ -5,11 +5,13 @@ import { z } from 'zod';
 
 import { withScopedPermission } from '@/business/server/trpc-middlewares/rbacPermission';
 import { wsCompatProcedure } from '@/business/server/trpc-middlewares/workspaceAuth';
+import { appEnv } from '@/envs/app';
 import { router } from '@/libs/trpc/lambda';
 import { serverDatabase } from '@/libs/trpc/lambda/middleware';
 import { FileS3 } from '@/server/modules/S3';
 import { FileUploadService } from '@/server/services/fileUpload';
 import { reserveUpload, uploadConflict } from '@/server/services/fileUploadReservation';
+import { getNeonUploadFunctionUrl } from '@/server/services/neonUpload';
 
 const MAX_MULTIPART_PARTS = 10_000;
 const MULTIPART_PART_SIZE = 32 * 1024 * 1024;
@@ -281,7 +283,8 @@ export const uploadRouter = router({
       });
 
       try {
-        return await s3.createPreSignedUrl(input.pathname, input.size);
+        const signedUrl = await s3.createPreSignedUrl(input.pathname, input.size);
+        return getNeonUploadFunctionUrl(signedUrl, appEnv.APP_URL, input.size);
       } catch (error) {
         await ctx.fileUploadService.releaseBestEffort(input.pathname);
         throw error;

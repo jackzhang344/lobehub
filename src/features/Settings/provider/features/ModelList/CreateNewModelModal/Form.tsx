@@ -1,12 +1,13 @@
 import { Checkbox, Input, Select } from '@lobehub/ui';
 import { Form, type FormInstance, type FormValues, useForm } from '@lobehub/ui/form';
-import type { AiModelType } from 'model-bank';
+import type { AiModelType, AiProviderModelListItem } from 'model-bank';
 import { memo, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import MaxTokenSlider from '@/components/MaxTokenSlider';
-import { type ChatModelCard } from '@/types/llm';
 
+import { RequestParameterFields } from '../ModelConfigModal/RequestParameterFields';
+import { toRequestParameterRows } from '../ModelConfigModal/utils';
 import ExtendParamsSelect from './ExtendParamsSelect';
 import { CUSTOM_MODEL_TYPES, hasDuplicateModelId } from './utils';
 
@@ -14,15 +15,17 @@ interface ModelConfigFormProps {
   disabled?: boolean;
   existingModelIds?: string[];
   idEditable?: boolean;
-  initialValues?: ChatModelCard;
+  initialValues?: AiProviderModelListItem;
   onFormInstanceReady: (instance: FormInstance) => void;
   showDeployName?: boolean;
+  showRequestParameters?: boolean;
   type?: AiModelType;
 }
 
 const ModelConfigForm = memo<ModelConfigFormProps>(
   ({
     showDeployName,
+    showRequestParameters,
     idEditable = true,
     onFormInstanceReady,
     initialValues,
@@ -31,7 +34,11 @@ const ModelConfigForm = memo<ModelConfigFormProps>(
   }) => {
     const { t } = useTranslation('modelProvider');
 
-    const formInstance = useForm<FormValues>({ initialValues });
+    const formInstance = useForm<FormValues>({
+      initialValues: showRequestParameters
+        ? { ...initialValues, requestParameterRows: toRequestParameterRows(initialValues?.config) }
+        : initialValues,
+    });
 
     const modelTypeOptions = useMemo(
       () =>
@@ -48,7 +55,7 @@ const ModelConfigForm = memo<ModelConfigFormProps>(
 
     useEffect(() => {
       onFormInstanceReady(formInstance);
-    }, []);
+    }, [formInstance, onFormInstanceReady]);
 
     return (
       <div
@@ -171,6 +178,9 @@ const ModelConfigForm = memo<ModelConfigFormProps>(
               placeholder={t('providerModels.item.modelConfig.type.placeholder')}
             />
           </Form.Field>
+          {showRequestParameters && (
+            <RequestParameterFields disabled={disabled} form={formInstance} />
+          )}
           {/*<Form.Item*/}
           {/*  extra={t('providerModels.item.modelConfig.files.extra')}*/}
           {/*  label={t('providerModels.item.modelConfig.files.title')}*/}

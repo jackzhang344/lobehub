@@ -161,6 +161,9 @@ export const createGoogleGenerateObject = async (
 
   const config: GenerateContentConfig = {
     abortSignal: options?.signal,
+    ...(options?.requestBodyOverrides && {
+      httpOptions: { extraBody: options.requestBodyOverrides },
+    }),
     responseMimeType: 'application/json',
     responseSchema,
     // avoid wide sensitive words
@@ -244,6 +247,9 @@ export const createGoogleGenerateObjectWithTools = async (
 
   const config: GenerateContentConfig = {
     abortSignal: options?.signal,
+    ...(options?.requestBodyOverrides && {
+      httpOptions: { extraBody: options.requestBodyOverrides },
+    }),
     // avoid wide sensitive words
     safetySettings: [
       {

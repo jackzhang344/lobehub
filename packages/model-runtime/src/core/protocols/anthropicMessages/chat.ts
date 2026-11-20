@@ -72,6 +72,7 @@ export const chatViaMessages = async (
   const providerRequestPayload = {
     ...requestPayload,
     metadata: options?.user ? { user_id: options.user } : undefined,
+    ...options?.requestBodyOverrides,
   };
   const providerRequestStartedAt = Date.now();
   const providerResponseDiagnostics = initializeAnthropicDiagnostics({

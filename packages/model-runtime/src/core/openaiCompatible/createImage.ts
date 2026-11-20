@@ -20,6 +20,7 @@ const log = createDebug('lobe-image:openai-compatible');
 interface CreateOpenAICompatibleImageOptions {
   pricingContext?: CreateImageMethodOptions['pricingContext'];
   pricingModel?: string;
+  requestBodyOverrides?: CreateImageMethodOptions['requestBodyOverrides'];
   requestModel?: string;
   routingModel?: string;
 }
@@ -111,9 +112,10 @@ async function generateByImageMode(
   log('options: %O', options);
 
   // Determine if it's an image editing operation
+  const request = { ...options, ...imageOptions?.requestBodyOverrides };
   const img = isImageEdit
-    ? await client.images.edit(options as any)
-    : await client.images.generate(options as any);
+    ? await client.images.edit(request as any)
+    : await client.images.generate(request as any);
 
   // Check the integrity of response data
   if (!img || !img.data || !Array.isArray(img.data) || img.data.length === 0) {
@@ -193,10 +195,10 @@ async function processImageUrlForChat(imageUrl: string): Promise<string> {
 async function generateByChatModel(
   client: OpenAI,
   payload: CreateImagePayload,
-  requestModel?: string,
+  options?: CreateOpenAICompatibleImageOptions,
 ): Promise<CreateImageResponse> {
   const { model, params } = payload;
-  const actualModel = (requestModel ?? model).replace(':image', ''); // Remove :image suffix
+  const actualModel = (options?.requestModel ?? model).replace(':image', ''); // Remove :image suffix
 
   log('Creating image via chat API with model: %s and params: %O', actualModel, params);
 
@@ -239,6 +241,7 @@ async function generateByChatModel(
     ],
     model: actualModel,
     stream: false,
+    ...options?.requestBodyOverrides,
   });
 
   log('Chat API response: %O', response);
@@ -279,7 +282,7 @@ export async function createOpenAICompatibleImage(
 
   // Check if it's a chat model for image generation (via :image suffix)
   if (routingModel.endsWith(':image')) {
-    return await generateByChatModel(client, payload, options?.requestModel);
+    return await generateByChatModel(client, payload, options);
   }
 
   // Default to traditional images API

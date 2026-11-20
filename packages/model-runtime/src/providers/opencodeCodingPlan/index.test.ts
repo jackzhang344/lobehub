@@ -73,6 +73,7 @@ describe('LobeOpenCodeCodingPlanAI', () => {
           }),
           expect.objectContaining({
             apiType: 'google',
+            models: expect.arrayContaining(['gemini-4-argon']),
             options: {
               apiKey: 'test',
               baseURL: 'https://opencode.ai/inference/go/google',

@@ -16,6 +16,22 @@ const MAX_MULTIPART_PARTS = 10_000;
 const MULTIPART_PART_SIZE = 32 * 1024 * 1024;
 const MULTIPART_UPLOAD_THRESHOLD = 64 * 1024 * 1024;
 
+// This site's Vercel route accepts only signed PUTs to its Neon bucket.
+export const getNeonUploadRelayUrl = (url: string, origin: string | undefined) => {
+  if (origin !== 'https://451287.xyz') return undefined;
+
+  const storageUrl = new URL(url, origin);
+  if (
+    storageUrl.origin !== 'https://br-hidden-dew-ae8lcssj.storage.c-2.us-east-2.aws.neon.tech' ||
+    !storageUrl.pathname.startsWith('/lobehub-files/') ||
+    !storageUrl.searchParams.has('X-Amz-Signature')
+  ) {
+    return undefined;
+  }
+
+  return `/api/lobehub-neon-upload${storageUrl.pathname}${storageUrl.search}`;
+};
+
 /**
  * Generate file storage path metadata for S3-compatible storage
  * @param originalFilename - Original filename
@@ -284,17 +300,24 @@ class UploadService {
         xhr.addEventListener('load', () => {
           if (xhr.status >= 200 && xhr.status < 300) {
             resolve(xhr.getResponseHeader?.('ETag') || undefined);
-          } else reject(xhr.statusText);
+          } else reject(new Error(xhr.statusText || `HTTP ${xhr.status}`));
         });
         xhr.addEventListener('error', () => {
           if (xhr.status === 0) reject(UPLOAD_NETWORK_ERROR);
-          else reject(xhr.statusText);
+          else reject(new Error(xhr.statusText || `HTTP ${xhr.status}`));
         });
         xhr.addEventListener('abort', () => reject(new Error('Upload cancelled by user')));
         xhr.open('PUT', url);
         if (contentType) xhr.setRequestHeader('Content-Type', contentType);
         xhr.send(blob);
       });
+    } catch (error) {
+      if (error !== UPLOAD_NETWORK_ERROR || signal?.aborted) throw error;
+
+      const relayUrl = getNeonUploadRelayUrl(url, globalThis.location?.origin);
+      if (!relayUrl) throw error;
+
+      return this.putBlob(relayUrl, blob, signal, onProgress, contentType);
     } finally {
       signal?.removeEventListener('abort', abort);
     }

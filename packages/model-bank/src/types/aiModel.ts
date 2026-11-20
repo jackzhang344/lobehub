@@ -6,6 +6,12 @@ import {
   type TTSVoice,
   type VideoModelParamsSchema,
 } from '../standard-parameters';
+import {
+  type ModelRequestParameters,
+  ModelRequestParametersSchema,
+} from './modelRequestParameters';
+
+export * from './modelRequestParameters';
 
 export type ModelPriceCurrency = 'CNY' | 'USD';
 
@@ -503,12 +509,63 @@ export const MODEL_REASONING_PARAM_DEFAULTS: {
   thinkingLevel4: 'minimal',
 };
 
+const openRouterSortOrder = z.enum(['price', 'throughput', 'latency']);
+const openRouterProviderSlugs = z.array(z.string().trim().min(1)).max(100);
+const openRouterNonNegativeNumber = z.number().nonnegative();
+
+const openRouterPerformanceThreshold = z.union([
+  openRouterNonNegativeNumber,
+  z.strictObject({
+    p50: openRouterNonNegativeNumber.optional(),
+    p75: openRouterNonNegativeNumber.optional(),
+    p90: openRouterNonNegativeNumber.optional(),
+    p99: openRouterNonNegativeNumber.optional(),
+  }),
+]);
+
+/** Routing preferences sent as the OpenRouter request's `provider` object. */
+export const OpenRouterProviderPreferencesSchema = z.strictObject({
+  allow_fallbacks: z.boolean().optional(),
+  data_collection: z.enum(['allow', 'deny']).optional(),
+  enforce_distillable_text: z.boolean().optional(),
+  ignore: openRouterProviderSlugs.optional(),
+  max_price: z
+    .strictObject({
+      completion: openRouterNonNegativeNumber.optional(),
+      image: openRouterNonNegativeNumber.optional(),
+      prompt: openRouterNonNegativeNumber.optional(),
+      request: openRouterNonNegativeNumber.optional(),
+    })
+    .optional(),
+  only: openRouterProviderSlugs.optional(),
+  order: openRouterProviderSlugs.optional(),
+  preferred_max_latency: openRouterPerformanceThreshold.optional(),
+  preferred_min_throughput: openRouterPerformanceThreshold.optional(),
+  quantizations: z.array(z.string().trim().min(1)).max(24).optional(),
+  require_parameters: z.boolean().optional(),
+  sort: z
+    .union([
+      openRouterSortOrder,
+      z.strictObject({
+        by: openRouterSortOrder,
+        partition: z.enum(['model', 'none']).nullish(),
+      }),
+    ])
+    .optional(),
+  zdr: z.boolean().optional(),
+});
+
+export type OpenRouterProviderPreferences = z.infer<typeof OpenRouterProviderPreferencesSchema>;
+
 export interface AiModelConfig {
   /**
    * User-level default reasoning params for this model instance; see
    * AiModelReasoningConfig. Not synced from remote model lists.
    */
   chatConfig?: AiModelReasoningConfig;
+
+  /** Per-model values applied to the selected API's native request body. */
+  customRequestParameters?: ModelRequestParameters;
 
   /**
    * used in azure and volcengine
@@ -519,6 +576,9 @@ export interface AiModelConfig {
    * qwen series model enabled search
    */
   enabledSearch?: boolean;
+
+  /** Per-model routing settings for the OpenRouter provider. */
+  openRouterProvider?: OpenRouterProviderPreferences | null;
 }
 
 export type ModelSearchImplementType = 'tool' | 'params' | 'internal';
@@ -804,7 +864,9 @@ export const UpdateAiModelSchema = z.object({
   // generic update path can never carry (and thus never stomp) that namespace.
   config: z
     .object({
+      customRequestParameters: ModelRequestParametersSchema.optional(),
       deploymentName: z.string().optional(),
+      openRouterProvider: OpenRouterProviderPreferencesSchema.nullish(),
     })
     .optional(),
   contextWindowTokens: z.number().nullish(),

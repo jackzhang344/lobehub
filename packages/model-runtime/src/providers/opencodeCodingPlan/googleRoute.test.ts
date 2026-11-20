@@ -1,17 +1,14 @@
 // @vitest-environment node
-import { GoogleGenAI } from '@google/genai';
-import OpenAI from 'openai';
-import type { Mock } from 'vitest';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
+import { ModelRuntime } from '../../core/ModelRuntime';
 import { LobeOpenCodeCodingPlanAI } from './index';
 
 // The router pulls the cloud model-bank config for deepseek route resolution,
 // which transitively imports server-only modules (e.g. redis-client). Stub it
 // so the Google chat route can be exercised in the node test env.
-const { loadModelsMock } = vi.hoisted(() => ({ loadModelsMock: vi.fn() }));
 vi.mock('@lobechat/business-model-bank/model-config', () => ({
-  loadModels: loadModelsMock,
+  loadModels: vi.fn().mockResolvedValue([]),
 }));
 
 const modelsDevResponse = () =>
@@ -32,58 +29,54 @@ const modelsDevResponse = () =>
     }),
   );
 
-async function* emptyGenerateContentStream(): AsyncGenerator<any> {}
-
 describe('OpenCode Go Google route', () => {
-  let generateContentStreamSpy: Mock;
-  let chatCreateSpy: Mock;
+  it('sends Gemini thinking level, session headers, and saved request parameters together', async () => {
+    const requests: { body: unknown; headers: Headers; url: URL }[] = [];
+    vi.stubGlobal('fetch', async (input: string, init?: RequestInit) => {
+      if (input === 'https://models.dev/api.json') return modelsDevResponse();
 
-  beforeEach(() => {
-    loadModelsMock.mockResolvedValue([]);
-    vi.spyOn(global, 'fetch').mockImplementation(async () => modelsDevResponse());
-
-    // All GoogleGenAI clients share the Models prototype, so spying on it
-    // captures the router-created client's calls without mocking the SDK.
-    const probe = new GoogleGenAI({ apiKey: 'test' });
-    generateContentStreamSpy = vi
-      .spyOn(Object.getPrototypeOf(probe.models), 'generateContentStream')
-      .mockImplementation(async () => emptyGenerateContentStream()) as unknown as Mock;
-
-    chatCreateSpy = vi
-      .spyOn(OpenAI.Chat.Completions.prototype, 'create')
-      .mockResolvedValue(new ReadableStream() as any) as unknown as Mock;
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it('sends gemini-4-argon through generateContent with thinkingLevel and Go session headers', async () => {
-    const instance = new LobeOpenCodeCodingPlanAI({ apiKey: 'test' });
-
-    await instance.chat(
-      {
-        messages: [{ content: 'Hello', role: 'user' }],
-        model: 'gemini-4-argon',
-        thinkingLevel: 'low',
-      },
-      { metadata: { topicId: 'topic-google' } },
-    );
-
-    expect(chatCreateSpy).not.toHaveBeenCalled();
-    expect(generateContentStreamSpy).toHaveBeenCalledOnce();
-
-    const request = generateContentStreamSpy.mock.calls[0][0];
-    expect(request.model).toBe('gemini-4-argon');
-    // Gemini 4 maps the thinkingLevel slider straight to thinkingConfig.
-    expect(request.config.thinkingConfig).toMatchObject({
-      includeThoughts: true,
-      thinkingLevel: 'low',
+      requests.push({
+        body: JSON.parse(init?.body as string),
+        headers: new Headers(init?.headers),
+        url: new URL(input),
+      });
+      return new Response(
+        'data: {"candidates":[{"content":{"parts":[{"text":"ok"}],"role":"model"}}]}\n\n',
+        { headers: { 'Content-Type': 'text/event-stream' } },
+      );
     });
-    // Go session identity reaches the Google route via per-request httpOptions.
-    expect(request.config.httpOptions.headers).toMatchObject({
-      'x-opencode-client': 'lobehub',
-      'x-opencode-session': 'topic-google',
-    });
+
+    try {
+      const instance = new LobeOpenCodeCodingPlanAI({ apiKey: 'test' });
+      const runtime = new ModelRuntime(instance, undefined, () => ({
+        generationConfig: { maxOutputTokens: 1024 },
+      }));
+      const response = await runtime.chat(
+        {
+          messages: [{ content: 'Hello', role: 'user' }],
+          model: 'gemini-4-argon',
+          thinkingLevel: 'low',
+        },
+        { metadata: { topicId: 'topic-google' } },
+      );
+      await response.text();
+
+      expect(requests).toHaveLength(1);
+      const request = requests[0];
+      expect(request.url.origin).toBe('https://opencode.ai');
+      expect(request.url.pathname).toBe(
+        '/inference/go/google/v1beta/models/gemini-4-argon:streamGenerateContent',
+      );
+      expect(request.headers.get('x-opencode-client')).toBe('lobehub');
+      expect(request.headers.get('x-opencode-session')).toBe('topic-google');
+      expect(request.body).toMatchObject({
+        generationConfig: {
+          maxOutputTokens: 1024,
+          thinkingConfig: { includeThoughts: true, thinkingLevel: 'low' },
+        },
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

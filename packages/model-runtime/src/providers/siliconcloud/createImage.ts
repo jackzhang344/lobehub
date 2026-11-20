@@ -95,7 +95,7 @@ export async function createSiliconCloudImage(
   log('Request body: %O', body);
 
   const response = await fetch(endpoint, {
-    body: JSON.stringify(body),
+    body: JSON.stringify({ ...body, ...options.requestBodyOverrides }),
     headers: {
       'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',

@@ -4,6 +4,7 @@ import type {
   VideoGenerationRoute,
 } from '@lobechat/types';
 import type { RuntimeVideoGenParams } from 'model-bank';
+import type { ModelRequestParameterOptions } from 'model-bank/aiModel';
 
 import type { ModelPricingContext } from './pricing';
 
@@ -20,7 +21,7 @@ export type CreateVideoPayload = {
   previousInteractionId?: string;
 };
 
-export interface CreateVideoMethodOptions {
+export interface CreateVideoMethodOptions extends ModelRequestParameterOptions {
   /** Metadata passed to hooks (billing, tracing, etc.) */
   metadata?: Record<string, unknown>;
   /** Deployment preference; the selected runtime resolves it against model capabilities. */

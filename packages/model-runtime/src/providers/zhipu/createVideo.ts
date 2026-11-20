@@ -142,7 +142,7 @@ export async function createZhipuVideo(
   log('Zhipu video API request body: %O', body);
 
   const response = await fetch(`${baseURL}/videos/generations`, {
-    body: JSON.stringify(body),
+    body: JSON.stringify({ ...body, ...options.requestBodyOverrides }),
     headers: {
       'Authorization': `Bearer ${options.apiKey}`,
       'Content-Type': 'application/json',

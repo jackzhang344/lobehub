@@ -54,7 +54,7 @@ export async function createMiniMaxImage(
     }
 
     const response = await fetch(endpoint, {
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify({ ...requestBody, ...options.requestBodyOverrides }),
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',

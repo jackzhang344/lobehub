@@ -132,7 +132,7 @@ export async function createWenxinVideo(
   log('Wenxin video API request body: %O', body);
 
   const response = await fetch(`${baseURL}/video/generations`, {
-    body: JSON.stringify(body),
+    body: JSON.stringify({ ...body, ...options.requestBodyOverrides }),
     headers: {
       'Authorization': `Bearer ${options.apiKey}`,
       'Content-Type': 'application/json',

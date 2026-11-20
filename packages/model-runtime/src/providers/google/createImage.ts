@@ -90,6 +90,7 @@ interface GoogleImageErrorMetadata {
 interface GoogleImageOptions {
   pricingContext?: CreateImageMethodOptions['pricingContext'];
   pricingModel?: string;
+  requestBodyOverrides?: Record<string, unknown>;
   routingModel?: string;
 }
 
@@ -266,11 +267,15 @@ function extractImageFromResponse(response: GenerateContentResponse): CreateImag
 async function generateByImageModel(
   client: GoogleGenAI,
   payload: CreateImagePayload,
+  options?: GoogleImageOptions,
 ): Promise<CreateImageResponse> {
   const { model, params } = payload;
 
   const response = await client.models.generateImages({
     config: {
+      ...(options?.requestBodyOverrides && {
+        httpOptions: { extraBody: options.requestBodyOverrides },
+      }),
       aspectRatio: params.aspectRatio,
       numberOfImages: 1,
     },
@@ -298,7 +303,7 @@ async function generateImageByChatModel(
   client: GoogleGenAI,
   payload: CreateImagePayload,
   provider: string,
-  options?: Pick<GoogleImageOptions, 'pricingContext' | 'pricingModel'>,
+  options?: GoogleImageOptions,
 ): Promise<CreateImageResponse> {
   const { model, params } = payload;
   const actualModel = model.replace(':image', '');
@@ -349,6 +354,9 @@ async function generateImageByChatModel(
   }
 
   const config: GenerateContentConfig = {
+    ...(options?.requestBodyOverrides && {
+      httpOptions: { extraBody: options.requestBodyOverrides },
+    }),
     responseModalities: ['TEXT', 'IMAGE'],
     systemInstruction: GOOGLE_IMAGE_GENERATION_SYSTEM_PROMPT,
     ...(Object.keys(imageConfig).length > 0 ? { imageConfig } : {}),
@@ -391,7 +399,7 @@ export async function createGoogleImage(
     }
 
     // Handle traditional Imagen models that use generateImages
-    return await generateByImageModel(client, payload);
+    return await generateByImageModel(client, payload, options);
   } catch (error) {
     const err = error as Error;
 

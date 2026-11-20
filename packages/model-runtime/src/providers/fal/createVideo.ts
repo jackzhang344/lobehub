@@ -158,6 +158,7 @@ export const createFalVideo = async (
   model: string,
   params: RuntimeVideoGenParams,
   loadInputSchema?: (endpoint: string) => Promise<FalJsonSchema | undefined>,
+  requestBodyOverrides?: Record<string, unknown>,
 ): Promise<CreateVideoResult> => {
   let endpoint: string;
   let input: Record<string, unknown>;
@@ -170,7 +171,9 @@ export const createFalVideo = async (
   }
   log('Submitting fal video request to %s with input: %O', endpoint, input);
 
-  const { request_id } = await client.queue.submit(endpoint, { input });
+  const { request_id } = await client.queue.submit(endpoint, {
+    input: { ...input, ...requestBodyOverrides },
+  });
 
   // Status and result URLs only use `<owner>/<app>`, so a full endpoint id also works as app id
   return { inferenceId: toFalVideoInferenceId(model, request_id) };

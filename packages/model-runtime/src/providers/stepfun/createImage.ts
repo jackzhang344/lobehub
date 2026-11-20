@@ -62,7 +62,7 @@ export async function createStepfunImage(
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ ...body, ...options.requestBodyOverrides }),
     });
 
     if (!res.ok) {

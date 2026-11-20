@@ -86,6 +86,7 @@ const ANTHROPIC_MODEL_PREFIXES = ['minimax', 'qwen'];
 
 // Fallback: models that need Google SDK (used when models.dev is unavailable)
 const GOOGLE_MODEL_PREFIXES = ['gemini'];
+const FALLBACK_GOOGLE_MODELS = ['gemini-4-argon'];
 
 // Fallback: models with interleaved reasoning_content (used when models.dev
 // is unreachable). Mirrors the last-known state of models.dev.
@@ -238,11 +239,12 @@ const getGoogleModels = async (): Promise<string[]> => {
 
   try {
     const { opencodecodingplan } = await import('model-bank');
-    return opencodecodingplan
+    const staticGoogleModels = opencodecodingplan
       .map((m) => m.id)
       .filter((id) => GOOGLE_MODEL_PREFIXES.some((p) => id.startsWith(p)));
+    return [...new Set([...FALLBACK_GOOGLE_MODELS, ...staticGoogleModels])];
   } catch {
-    return [];
+    return FALLBACK_GOOGLE_MODELS;
   }
 };
 

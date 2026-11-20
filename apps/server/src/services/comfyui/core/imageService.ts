@@ -7,6 +7,7 @@
 import { type CreateImagePayload, type CreateImageResponse } from '@lobechat/model-runtime';
 import { type PromptBuilder } from '@saintno/comfyui-sdk';
 import debug from 'debug';
+import type { RequestBodyOverrides } from 'model-bank/aiModel';
 
 import { type ComfyUIClientService } from '@/server/services/comfyui/core/comfyUIClientService';
 import { ErrorHandlerService } from '@/server/services/comfyui/core/errorHandlerService';
@@ -38,7 +39,10 @@ export class ImageService {
    * Create image with complete business logic
    * Optimized with parallel execution for independent operations
    */
-  async createImage(payload: CreateImagePayload): Promise<CreateImageResponse> {
+  async createImage(
+    payload: CreateImagePayload,
+    requestParameterOverrides?: RequestBodyOverrides,
+  ): Promise<CreateImageResponse> {
     const { model } = payload;
     // Clone params to avoid modifying the original object
     const params = { ...payload.params };
@@ -61,6 +65,18 @@ export class ImageService {
 
       // Build workflow with processed params (imageUrl already replaced with ComfyUI filename)
       const workflow = await this.buildWorkflow(model, modelFileName, params);
+      for (const [field, value] of Object.entries(requestParameterOverrides ?? {})) {
+        if (Object.hasOwn(workflow.mapInputKeys, field)) {
+          workflow.input(field, value);
+          continue;
+        }
+        // ComfyUI API parameters are workflow node inputs (e.g. 6.inputs.seed).
+        const path = /^(\d+)\.inputs\.([\w-]+)$/.exec(field);
+        if (!path || !Object.hasOwn(workflow.prompt[path[1]]?.inputs ?? {}, path[2])) {
+          throw new Error(`Unknown ComfyUI workflow input: ${field}`);
+        }
+        workflow.inputRaw(field, value);
+      }
 
       // Execute workflow
       const result = await this.clientService.executeWorkflow(workflow, (info: any) =>

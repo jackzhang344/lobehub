@@ -1,3 +1,7 @@
+import { resolveModelRequestParameters } from 'model-bank/aiModel';
+
+import { aiModelService } from '@/services/aiModel';
+
 import { createPayloadWithKeyVaults } from '../../_auth';
 
 export interface InitializeWithClientStoreOptions {
@@ -37,10 +41,18 @@ export const initializeWithClientStore = async ({
    * Configuration override order:
    * payload -> providerAuthPayload -> commonOptions
    */
-  return ModelRuntime.initializeWithProvider(runtimeProvider ?? provider, {
-    ...commonOptions,
-    ...providerAuthPayload,
-    ...payload,
-    providerId: provider,
-  });
+  return ModelRuntime.initializeWithProvider(
+    runtimeProvider ?? provider,
+    {
+      ...commonOptions,
+      ...providerAuthPayload,
+      ...payload,
+      providerId: provider,
+    },
+    undefined,
+    async (modelId) => {
+      const config = await aiModelService.getAiModelRequestConfig(modelId, provider);
+      return resolveModelRequestParameters(config, provider);
+    },
+  );
 };

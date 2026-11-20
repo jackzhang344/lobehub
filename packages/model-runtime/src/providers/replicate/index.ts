@@ -6,6 +6,7 @@ import type {
   ChatCompletionErrorPayload,
   ChatMethodOptions,
   ChatStreamPayload,
+  CreateImageMethodOptions,
   CreateImagePayload,
 } from '../../types';
 import { AgentRuntimeErrorType } from '../../types/error';
@@ -87,7 +88,7 @@ export class LobeReplicateAI implements LobeRuntimeAI {
   /**
    * Image generation support for LobeChat async image generation (FLUX, Stable Diffusion, etc.)
    */
-  async createImage(payload: CreateImagePayload) {
+  async createImage(payload: CreateImagePayload, options?: CreateImageMethodOptions) {
     try {
       const { model, params } = payload;
       const { prompt, width, height, cfg, steps, seed, imageUrl, aspectRatio } = params;
@@ -274,7 +275,9 @@ export class LobeReplicateAI implements LobeRuntimeAI {
       );
       this.debugLog('[Replicate createImage] Calling client.run...');
 
-      const output = await this.client.run(model as any, { input });
+      const output = await this.client.run(model as any, {
+        input: { ...input, ...options?.requestBodyOverrides },
+      });
 
       this.debugLog('[Replicate createImage] Raw output:', output);
       this.debugLog(

@@ -129,7 +129,7 @@ export async function createZhipuImage(
     : `${baseURL}/async/images/generations`;
 
   const response = await fetch(endpoint, {
-    body: JSON.stringify(body),
+    body: JSON.stringify({ ...body, ...options.requestBodyOverrides }),
     headers: {
       'Authorization': `Bearer ${options.apiKey}`,
       'Content-Type': 'application/json',

@@ -7,8 +7,13 @@ import type { ClientOptions } from 'openai';
 
 import type { LobeRuntimeAI } from '../../core/BaseAI';
 import { AgentRuntimeErrorType } from '../../types/error';
-import type { CreateImagePayload, CreateImageResponse } from '../../types/image';
 import type {
+  CreateImageMethodOptions,
+  CreateImagePayload,
+  CreateImageResponse,
+} from '../../types/image';
+import type {
+  CreateVideoMethodOptions,
   CreateVideoPayload,
   CreateVideoResult,
   PollVideoStatusResult,
@@ -147,14 +152,21 @@ export class LobeFalAI implements LobeRuntimeAI {
     return { completionModes: ['polling'] };
   }
 
-  async createVideo(payload: CreateVideoPayload): Promise<CreateVideoResult> {
+  async createVideo(
+    payload: CreateVideoPayload,
+    options?: CreateVideoMethodOptions,
+  ): Promise<CreateVideoResult> {
     const requestModel = resolveFalEndpointId(
       resolveMappedModelId(payload.model, this.modelIdMappingOptions),
     );
 
     try {
-      return await createFalVideo(this.client, requestModel, payload.params, (endpoint) =>
-        getFalInputSchema(this.apiKey, endpoint),
+      return await createFalVideo(
+        this.client,
+        requestModel,
+        payload.params,
+        (endpoint) => getFalInputSchema(this.apiKey, endpoint),
+        options?.requestBodyOverrides,
       );
     } catch (error) {
       throw toFalRuntimeError(error);
@@ -165,7 +177,10 @@ export class LobeFalAI implements LobeRuntimeAI {
     return pollFalVideoStatus(this.client, inferenceId);
   }
 
-  async createImage(payload: CreateImagePayload): Promise<CreateImageResponse> {
+  async createImage(
+    payload: CreateImagePayload,
+    options?: CreateImageMethodOptions,
+  ): Promise<CreateImageResponse> {
     const { model, params } = payload;
     const requestModel = resolveMappedModelId(model, this.modelIdMappingOptions);
     log('Creating image with model: %s and params: %O', requestModel, params);
@@ -238,7 +253,7 @@ export class LobeFalAI implements LobeRuntimeAI {
     log('Calling fal.subscribe with endpoint: %s and input: %O', endpoint, finalInput);
     try {
       const { data } = await fal.subscribe(endpoint, {
-        input: finalInput,
+        input: { ...finalInput, ...options?.requestBodyOverrides },
       });
       const output = data as FalImageOutput;
       const image = output.images?.[0] ?? output.image;
