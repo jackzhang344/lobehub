@@ -218,6 +218,12 @@ export class LobeGoogleAI implements LobeRuntimeAI {
 
       const config: GenerateContentConfig = {
         abortSignal: originalSignal,
+        // Router-injected per-request headers (e.g. OpenCode Go session identity),
+        // mirroring the OpenAI/Anthropic runtimes' requestHeaders passthrough.
+        ...(options?.requestHeaders &&
+          Object.keys(options.requestHeaders).length > 0 && {
+            httpOptions: { headers: options.requestHeaders },
+          }),
         imageConfig: Object.keys(imageConfig).length > 0 ? imageConfig : undefined,
         maxOutputTokens: payload.max_tokens,
         responseModalities: isImageResponseModel ? ['Text', 'Image'] : undefined,

@@ -16,6 +16,8 @@ import {
   isKimiNativeThinkingModel,
   isKimiReasoningEffortModel,
   isKimiReasoningModel,
+  parseKimiModelId,
+  resolveKimiReasoningEffort,
 } from '../moonshot/modelId';
 import { resolveProviderRouteModels } from '../utils/resolveProviderRouteModels';
 
@@ -25,6 +27,9 @@ import { resolveProviderRouteModels } from '../utils/resolveProviderRouteModels'
 
 const GO_BASE_URL = 'https://opencode.ai/zen/go/v1';
 const MODELS_DEV_URL = 'https://models.dev/api.json';
+// Go serves Gemini from a dedicated Google-dialect endpoint (models.dev marks
+// those models with provider.npm '@ai-sdk/google'), not the OpenAI-compatible one.
+const GOOGLE_BASE_URL = 'https://opencode.ai/inference/go/google/v1beta';
 
 // ============================================================================
 // Models.dev Types & Cache
@@ -44,8 +49,9 @@ interface ModelsDevModel {
   limit?: { context?: number; output?: number };
   modalities?: { input?: string[]; output?: string[] };
   name?: string;
-  provider?: { npm?: string };
+  provider?: { api?: string; npm?: string };
   reasoning?: boolean;
+  reasoning_options?: Array<{ type?: string; values?: string[] }>;
   release_date?: string;
   structured_output?: boolean;
   tool_call?: boolean;
@@ -61,6 +67,11 @@ interface ModelsDevData {
 interface ModelsCache {
   anthropicModels: string[];
   /**
+   * Model IDs whose `provider.npm` is the Google SDK. They are served from Go's
+   * dedicated Google-dialect endpoint and must not use the OpenAI-compatible route.
+   */
+  googleModels: string[];
+  /**
    * Model IDs whose `interleaved.field` is set in models.dev. These need
    * special reasoning_content handling in the OpenAI-compatible payload.
    * Populated by `fetchModelsDevData` so it stays in sync with models.dev.
@@ -72,6 +83,9 @@ interface ModelsCache {
 
 // Fallback: models that need Anthropic SDK (used when models.dev is unavailable)
 const ANTHROPIC_MODEL_PREFIXES = ['minimax', 'qwen'];
+
+// Fallback: models that need Google SDK (used when models.dev is unavailable)
+const GOOGLE_MODEL_PREFIXES = ['gemini'];
 
 // Fallback: models with interleaved reasoning_content (used when models.dev
 // is unreachable). Mirrors the last-known state of models.dev.
@@ -104,6 +118,7 @@ let cachedModelsData: ModelsCache | null = null;
 /**
  * Fetch models.dev data and derive all per-provider fields from it:
  *   - `anthropicModels`  (models whose `provider.npm` is the Anthropic SDK)
+ *   - `googleModels`     (models whose `provider.npm` is the Google SDK)
  *   - `responsesIds`     (models whose `provider.npm` is the OpenAI SDK)
  *   - `interleavedIds`   (models with `interleaved.field` set, needing
  *                         special reasoning_content handling)
@@ -128,6 +143,9 @@ const fetchModelsDevData = async (): Promise<ModelsCache> => {
     const anthropicModels = Object.values(models)
       .filter((m) => m.provider?.npm === '@ai-sdk/anthropic')
       .map((m) => m.id);
+    const googleModels = Object.values(models)
+      .filter((m) => m.provider?.npm === '@ai-sdk/google')
+      .map((m) => m.id);
     const responsesIds = new Set(
       Object.values(models)
         .filter((m) => m.provider?.npm === '@ai-sdk/openai')
@@ -139,11 +157,18 @@ const fetchModelsDevData = async (): Promise<ModelsCache> => {
       if (m?.interleaved?.field) interleavedIds.add(m.id);
     }
 
-    cachedModelsData = { anthropicModels, interleavedIds, modelsDev: models, responsesIds };
+    cachedModelsData = {
+      anthropicModels,
+      googleModels,
+      interleavedIds,
+      modelsDev: models,
+      responsesIds,
+    };
     return cachedModelsData;
   } catch {
     cachedModelsData = {
       anthropicModels: [],
+      googleModels: [],
       interleavedIds: new Set(),
       modelsDev: {},
       responsesIds: new Set(),
@@ -198,6 +223,41 @@ const getAnthropicModels = async (): Promise<string[]> => {
   } catch {
     return [];
   }
+};
+
+/**
+ * Get Google-SDK models with the same self-contained fallback chain as
+ * `getAnthropicModels` (models.dev first, static model-bank prefix second).
+ */
+const getGoogleModels = async (): Promise<string[]> => {
+  const { googleModels, modelsDev } = await fetchModelsDevData();
+
+  if (Object.keys(modelsDev).length > 0) {
+    return googleModels;
+  }
+
+  try {
+    const { opencodecodingplan } = await import('model-bank');
+    return opencodecodingplan
+      .map((m) => m.id)
+      .filter((id) => GOOGLE_MODEL_PREFIXES.some((p) => id.startsWith(p)));
+  } catch {
+    return [];
+  }
+};
+
+/**
+ * Google-dialect endpoint for Go's Gemini models. Prefer the URL published by
+ * models.dev (`provider.api`), falling back to the documented constant. A
+ * user-configured proxy baseURL cannot be translated to this dialect path, so
+ * the route always targets the official Go Google endpoint.
+ */
+const getGoogleBaseURL = async (): Promise<string> => {
+  const { modelsDev } = await fetchModelsDevData();
+  const googleModel = Object.values(modelsDev).find(
+    (m) => m.provider?.npm === '@ai-sdk/google' && m.provider?.api,
+  );
+  return googleModel?.provider?.api || GOOGLE_BASE_URL;
 };
 
 // ============================================================================
@@ -334,6 +394,34 @@ export const sanitizeJsonSchema = (schema: any): any => {
 // Payload Builder
 // ============================================================================
 
+// models.dev publishes the effort values each Go model accepts
+// (`reasoning_options`). Prefer it so new variants stay in sync without a
+// release-time code change.
+const getModelsDevEffortValues = (model: string): string[] | undefined => {
+  const options = cachedModelsData?.modelsDev?.[model]?.reasoning_options;
+  if (!Array.isArray(options)) return undefined;
+
+  const values = options.find((option) => option?.type === 'effort')?.values;
+  return Array.isArray(values) ? values : undefined;
+};
+
+/**
+ * OpenCode Go gates Kimi K3+ effort per variant: kimi-k3 accepts only 'max',
+ * while k3.1+ accepts low/high/max. Drop anything else instead of sending a
+ * value the API rejects.
+ */
+const resolveGoKimiReasoningEffort = (model: string, effort: string): string | undefined => {
+  const allowed = getModelsDevEffortValues(model);
+  if (allowed) return allowed.includes(effort) ? effort : undefined;
+
+  const parsed = parseKimiModelId(model);
+  if (parsed?.majorVersion === 3 && parsed.minorVersion === undefined) {
+    return effort === 'max' ? 'max' : undefined;
+  }
+
+  return resolveKimiReasoningEffort(effort);
+};
+
 /**
  * Select Responses-only models and build OpenAI-compatible payloads with
  * reasoning_content handling for interleaved and Kimi K2.x models.
@@ -383,6 +471,12 @@ const buildOpenAIPayload = (
 
   const { reasoning_effort, thinking, ...restPayload } = payload;
 
+  // Kimi K3+ effort is variant-gated on Go; other models keep full passthrough.
+  const resolvedReasoningEffort =
+    reasoning_effort && isKimiReasoningEffortModel(model)
+      ? resolveGoKimiReasoningEffort(model, reasoning_effort)
+      : reasoning_effort;
+
   // Sanitize response_format for Kimi models
   const response_format =
     isKimi &&
@@ -417,12 +511,10 @@ const buildOpenAIPayload = (
     messages,
     response_format,
     tools,
-    // Kimi K3+ only accepts reasoning_effort 'max' (also the server default) — drop
-    // any other saved effort instead of sending a value the API rejects
-    ...(!thinkingExplicitlyDisabled &&
-    reasoning_effort &&
-    (!isKimiReasoningEffortModel(model) || reasoning_effort === 'max')
-      ? { reasoning_effort }
+    // Kimi K3+ effort is variant-gated (kimi-k3: 'max' only; k3.1+: low/high/max) —
+    // drop anything else instead of sending a value the API rejects
+    ...(!thinkingExplicitlyDisabled && resolvedReasoningEffort
+      ? { reasoning_effort: resolvedReasoningEffort }
       : {}),
     // K3+ models configure reasoning via top-level reasoning_effort only and
     // reject the K2.x-only `thinking` param; native-thinking models never get
@@ -456,6 +548,10 @@ const LobeOpenCodeCodingPlanOpenAI = createOpenAICompatibleRuntime({
 
 // Anthropic SDK auto-appends /v1/messages to baseURL, so strip trailing /v1
 const stripV1 = (url?: string) => url?.replace(/\/v1$/, '');
+
+// The Google SDK appends the API version (/v1beta) itself, so strip it from the
+// models.dev endpoint before handing it to the client as baseUrl.
+const stripGoogleApiVersion = (url: string) => url.replace(/\/v1(?:beta)?$/, '');
 
 // ============================================================================
 // Provider Export
@@ -499,7 +595,11 @@ export const params = {
   routers: async (options, runtimeContext?: { model?: string }) => {
     const baseURL = options.baseURL || GO_BASE_URL;
 
-    const anthropicModels = await getAnthropicModels();
+    const [anthropicModels, googleModels] = await Promise.all([
+      getAnthropicModels(),
+      getGoogleModels(),
+    ]);
+    const googleBaseURL = stripGoogleApiVersion(await getGoogleBaseURL());
 
     return [
       // Anthropic SDK for models with provider.npm === '@ai-sdk/anthropic'
@@ -517,6 +617,23 @@ export const params = {
           runtimeContext?.model,
         ),
         options: { ...options, baseURL, sdkType: 'openai' },
+      },
+      // Google SDK for models with provider.npm === '@ai-sdk/google' (e.g.
+      // gemini-4-argon), served from Go's dedicated Google-dialect endpoint.
+      // The Google runtime reads defaultHeaders at client construction and
+      // requestHeaders per call, so Go session identity reaches this route too.
+      {
+        apiType: 'google',
+        models: googleModels,
+        options: {
+          ...options,
+          baseURL: googleBaseURL,
+          defaultHeaders: {
+            'User-Agent': 'lobehub',
+            'x-opencode-client': 'lobehub',
+            ...(options as any).defaultHeaders,
+          },
+        },
       },
       // OpenAI-compatible fallback for all other models
       {
