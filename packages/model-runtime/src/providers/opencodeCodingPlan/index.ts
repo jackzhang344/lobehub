@@ -20,6 +20,7 @@ import {
   resolveKimiReasoningEffort,
 } from '../moonshot/modelId';
 import { resolveProviderRouteModels } from '../utils/resolveProviderRouteModels';
+import { inlineOpenCodeHistoryImages } from './historyImages';
 
 // ============================================================================
 // Constants
@@ -662,7 +663,8 @@ export class LobeOpenCodeCodingPlanAI extends createRouterRuntime(params) {
   }
 
   override async chat(payload: ChatStreamPayload, options?: ChatMethodOptions) {
-    return super.chat(payload, {
+    const request = await inlineOpenCodeHistoryImages(payload, process.env.APP_URL, options?.signal);
+    return super.chat(request, {
       ...options,
       requestHeaders: {
         ...this.getSessionHeaders(options?.metadata),
